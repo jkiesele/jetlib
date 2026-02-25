@@ -27,23 +27,6 @@ class EventGenerator {
       pythia_.init();
     }
     
-      pythia_.readString("NewGaugeBoson:ffbar2gmZZprime = on");
-      pythia_.readString("Zprime:gmZmode = 3"); // SM-like couplings
-      pythia_.readString("32:m0 = 300."); // Z' mass 3 TeV
-      pythia_.readString("32:onMode = off"); // turn off all Z' decays
-      pythia_.readString("32:onIfAny = 1 2 3 4"); // turn on Z'->ttbar 
-      ////ttbar
-      //pythia_.readString("Top:gg2ttbar = on"); // gluon fusion
-      //pythia_.readString("Top:qqbar2ttbar = on"); // quark-antiquark annihilation
-      //// Z->tau tau
-      //pythia_.readString("WeakSingleBoson:ffbar2gmZ = on");
-      //pythia_.readString("WeakZ0:gmZmode = 2"); // SM-like couplings
-      //pythia_.readString("23:onMode = off"); // turn off all Z decays
-      //pythia_.readString("23:onIfAny = 15"); // turn on Z->tau tau
-      pythia_.init();
-
-    }*/
-    
     void generateEvents(size_t nEvents) {
       for (size_t iEvent = 0; iEvent < nEvents; ++iEvent) {
         if (!pythia_.next()) continue;

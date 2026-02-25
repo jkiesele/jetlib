@@ -12,7 +12,7 @@ class ArgumentParser {
     int nEvents_;
     
   public:
-    ArgumentParser() : filename_("output.root"), configFile_("config/ttbar.cfg"), debug_(false), nEvents_(1) {}
+    ArgumentParser() : filename_("output.root"), configFile_("../config/ttbar.cfg"), debug_(false), nEvents_(1) {}
     
     bool parse(int argc, char** argv) {
         for (int i = 1; i < argc; ++i) {
