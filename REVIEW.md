@@ -209,11 +209,13 @@ Branch `feature/selection-seed`, not pushed. Commits:
 | `3791732` | **A.** Configurable jet selection: `--pt-min`, `--pt-max`, `--eta-min`, `--eta-max`, `--abs-eta`. The hardcoded filter is removed. The defaults are pT > 30 and signed η > 1.7, all cuts strict. The clustering threshold is `min(20, --pt-min)`. The selection is validated and printed. `JetSelection` is exposed in Python. |
 | `a4bc542` | **B.** `--seed <int>`, default 0 (time-based). It is applied after the config file and before `pythia.init()`, and accepts the range [0, 900000000]. The seed is printed. `EventGenerator.setSeed` is exposed in Python. |
 | `8eb870e` | **C.** Requested by the user after the review. Invisible particles (`!isVisible()`) are never clustered. Prompt e/μ (no hadron from hadronization or decays among their ancestors) are removed by default, and `--keep-prompt-leptons` keeps them. The mode and the numbers of removed particles are printed. `setKeepPromptLeptons` is exposed in Python. |
+| `fa8ba83` | Acceptance checks and first results. |
+| `fca60b9` | **D.** Requested by the user after Phase 2. The default selection becomes pT > 30 and −3 < η < 3 (|η| < 3 with `--abs-eta`), replacing the master-compatible η > 1.7. Setting one η bound keeps the default for the other. |
 
 The review findings this resolves: 1.1 (selection), 1.2 (neutrinos), 1.3 (prompt leptons, now configurable), 1.5 (seed override; the seed is still not stored in the file), and 1.6 (clustering threshold). The other findings are still open, as agreed.
 
 **Behaviour changes to note:**
-- With C, the default output differs from master: there are fewer jets, and none of them are fake neutrino or lepton "jets". The "identical to master" check is therefore run against commit B.
+- With C and D, the default output differs from master. C removes the fake neutrino and lepton "jets". D replaces the single forward region η > 1.7 with the central range −3 < η < 3. The "identical to master" check is therefore run against commit B. To get master's η selection back, use `--eta-min 1.7 --eta-max 100`.
 - Python users of `EventGenerator` and `JetAnalysis` now also get invisibles and prompt leptons removed by default. `JetAnalyzer` without a selection still accepts all jets, as before.
 
 ## Acceptance checks
@@ -236,13 +238,13 @@ The script is `checks/check_output.py`. It runs the binaries in the DICE contain
 | `--seed 0` twice gives different contents (runs started more than 1 s apart) | PASS |
 | `--abs-eta --eta-min 1.7 --eta-max 2.6 --pt-min 30`: all jets inside the cuts | PASS: 1706 jets, pT ≥ 30.00, \|η\| in [1.700, 2.600] |
 | … both η signs balanced | PASS: 847 with η > 0, 859 with η < 0 (difference 12, limit 3√n = 124) |
-| `--pt-min 10` gives jets with 10 < pT < 20 | PASS: 1107 of 2778 jets |
-| Final build, default selection pT > 30 and η > 1.7 | PASS: 1255 jets |
+| `--pt-min 10` gives jets with 10 < pT < 20 (default η range) | PASS: 3687 of 14066 jets |
+| Final build, default selection pT > 30 and −3 < η < 3, both signs | PASS: 8401 jets, η in [−2.998, 3.000), 4215 with η > 0 and 4186 with η < 0 |
 | No neutrinos in the output | PASS: 0 neutrino constituents, in both default and keep mode |
-| Prompt leptons removed by default and kept with the flag | PASS: jets with one e/μ carrying > 50% of E: 0.24% by default, 6.29% with `--keep-prompt-leptons` |
+| Prompt leptons removed by default and kept with the flag | PASS: jets with one e/μ carrying > 50% of E: 0.62% by default, 7.45% with `--keep-prompt-leptons` (default η range). The remaining 0.62% are hard semileptonic heavy-flavour decays, which are kept by design |
 | 10 invalid argument sets (negative or reversed cuts, non-numbers, missing values, seed −1, 900000001, 1.5, missing) | PASS: each exits 1 with an `Error: …` message |
 
-Other validation of C, from the run logs: in 2000 ttbar events, 1033 prompt leptons were removed (0.52 per event). That matches the expectation from W→e/μ, directly or through τ. 205 jets still contain e/μ from hadron decays, which is intended.
+The numbers above are from the rerun after D. Other validation of C, from the run logs of the earlier η > 1.7 runs: in 2000 ttbar events, 1033 prompt leptons were removed (0.52 per event). That matches the expectation from W→e/μ, directly or through τ. 205 jets still contain e/μ from hadron decays, which is intended.
 
 Build: the container build is clean, with no warnings, for both `jetlib` and `jetlibpy`. The Python bindings were tested for `JetSelection`, `setSeed` (out-of-range values raise `ValueError`), `setKeepPromptLeptons` and `setClusterPtMin`.
 

@@ -6,9 +6,10 @@ ROOT outputs with uproot on the host. Exit code 0 means all checks passed.
 
 Binaries:
   --final-bin   build of the branch under test (all changes)
-  --b-bin       build of the commit before the particle-content change (C);
-                used for the "defaults identical to master" check, because C
-                intentionally changes the default output
+  --b-bin       build of commit B (seed option), before the particle-content
+                change (C) and the new default eta range (D); used for the
+                "defaults identical to master" check, because C and D
+                intentionally change the default output
   --master-bin  unchanged master build
 
 Example (from the repository root, with the venv that has uproot and numpy):
@@ -179,11 +180,13 @@ def main():
     check("--pt-min 10 gives jets with 10 < pt < 20", low > 0 and np.all(pt > 10),
           f"{low} of {len(pt)} jets in (10, 20) GeV, pt min {pt.min():.2f}")
 
-    # default selection still applied by the final build
+    # default selection of the final build: pt > 30 && -3 < eta < 3
     a = read(p["c_default"])
     pt, eta = flat(a, "jetPt"), flat(a, "jetEta")
-    check("final build default selection pt > 30 && eta > 1.7", np.all((pt > 30) & (eta > 1.7)),
-          f"{len(pt)} jets, pt min {pt.min():.2f}, eta min {eta.min():.3f}")
+    npos, nneg = int(np.sum(eta > 0)), int(np.sum(eta < 0))
+    check("final build default selection pt > 30 && -3 < eta < 3",
+          len(pt) > 0 and np.all((pt > 30) & (eta > -3) & (eta < 3)) and abs(npos - nneg) < 3 * np.sqrt(len(pt)),
+          f"{len(pt)} jets, pt min {pt.min():.2f}, eta in [{eta.min():.3f}, {eta.max():.3f}], eta>0: {npos}, eta<0: {nneg}")
 
     # 5. particle content (change C)
     k = read(p["c_keep"])
