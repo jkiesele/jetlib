@@ -6,11 +6,15 @@
 #include "JetCollection.h"
 #include <fstream>
 #include <functional>
+#include <chrono>
+#include <cstdint>
+#include <random>
+#include <unistd.h>
 #include <stdexcept>
 
 class EventGenerator {
   public:
-    static constexpr long kSeedMin = 0;           // 0 = time-based seed in Pythia
+    static constexpr long kSeedMin = 0;           // 0 = jetlib draws a random seed
     static constexpr long kSeedMax = 900000000;   // Pythia's upper limit for Random:seed
     static constexpr double kJetR = 0.4;          // anti-kT radius
 
@@ -36,11 +40,19 @@ class EventGenerator {
                                    " of " + configFile_ + ": '" + line + "'");
       }
       infile.close();
-      // A seed set via setSeed() overrides whatever the config file says.
-      if (hasSeed_) {
+      // Seed: a value from setSeed() overrides the config file. A requested seed of 0
+      // (from setSeed or from the config) is replaced by a seed drawn here, so that the
+      // seed actually used is known and jobs started at the same time differ.
+      if (hasSeed_) requestedSeed_ = seed_;
+      else if (pythia_.flag("Random:setSeed")) requestedSeed_ = pythia_.mode("Random:seed");
+      else requestedSeed_ = -1;   // config leaves seeding off: Pythia's default seed
+      if (requestedSeed_ >= 0) {
+        effectiveSeed_ = (requestedSeed_ == 0) ? drawSeed() : requestedSeed_;
         if (!pythia_.readString("Random:setSeed = on") ||
-            !pythia_.readString("Random:seed = " + std::to_string(seed_)))
-          throw std::runtime_error("Pythia did not accept the random seed " + std::to_string(seed_));
+            !pythia_.readString("Random:seed = " + std::to_string(effectiveSeed_)))
+          throw std::runtime_error("Pythia did not accept the random seed " + std::to_string(effectiveSeed_));
+      } else {
+        effectiveSeed_ = -1;
       }
       if (!pythia_.init())
         throw std::runtime_error("Pythia initialization failed for " + configFile_ +
@@ -106,9 +118,9 @@ class EventGenerator {
     const std::string& getConfigText() const { return configText_; }
     double getPythiaVersion() { return pythia_.parm("Pythia:versionNumber"); }
 
-    // Override the random seed of the config file. 0 means time-based seeding.
-    // Negative values (Pythia's "default seed") are rejected by jetlib policy.
-    // Must be called before initialize().
+    // Override the random seed of the config file. 0 means jetlib draws a seed in
+    // initialize() (see getSeed()). Negative values (Pythia's "default seed") are
+    // rejected by jetlib policy. Must be called before initialize().
     void setSeed(long seed) {
       if (seed < kSeedMin || seed > kSeedMax)
         throw std::invalid_argument("seed must be in [0, 900000000], got " + std::to_string(seed) +
@@ -116,6 +128,27 @@ class EventGenerator {
           " default seed, are not accepted by jetlib)");
       seed_ = seed;
       hasSeed_ = true;
+    }
+
+    // Seed actually used, valid after initialize(): the requested seed, or the drawn one
+    // if 0 was requested; -1 if the config switched seeding off (Pythia default seed).
+    long getSeed() const { return effectiveSeed_; }
+    // seed requested via setSeed() or the config (0 = draw one); -1 if seeding is off
+    long getRequestedSeed() const { return requestedSeed_; }
+
+    // A seed in [1, 900000000] from std::random_device, mixed with the time in ns and
+    // the process ID, so that jobs started simultaneously get different seeds.
+    static long drawSeed() {
+      std::random_device rd;
+      uint64_t x = (static_cast<uint64_t>(rd()) << 32) ^ rd();
+      x ^= static_cast<uint64_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+      x ^= static_cast<uint64_t>(::getpid()) << 17;
+      // splitmix64 finalizer to spread the bits
+      x += 0x9e3779b97f4a7c15ULL;
+      x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+      x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+      x ^= x >> 31;
+      return static_cast<long>(x % static_cast<uint64_t>(kSeedMax)) + 1;
     }
 
     const JetCollection& getJetCollection() const {
@@ -136,6 +169,8 @@ class EventGenerator {
     size_t nFailedEvents_ = 0;
     size_t nAcceptedEvents_ = 0;
     long seed_ = 0;
+    long requestedSeed_ = 0;
+    long effectiveSeed_ = 0;
 };
 
 #endif

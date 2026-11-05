@@ -59,12 +59,14 @@ Jets are written event by event, so consecutive entries are correlated. Shuffle 
 
 ## Random seed
 
-`--seed <int>` sets the Pythia seed and always overrides `Random:seed` in the config file. The default is `0`, which Pythia turns into a time-based seed, so two runs differ. Allowed values are 0 to 900000000 (Pythia's maximum). Negative values are rejected; Pythia would map them to its fixed default seed. The seed is printed at startup.
+`--seed <int>` sets the Pythia seed and always overrides `Random:seed` in the config file. Allowed values are 0 to 900000000 (Pythia's maximum). Negative values are rejected; Pythia would map them to its fixed default seed.
 
-The time-based seed has a resolution of one second: jobs started in the same second produce identical events. For reproducible or parallel production, give every job its own non-zero seed:
+The default is `0`. jetlib then draws a seed in [1, 900000000] from `std::random_device`, mixed with the time in nanoseconds and the process ID, and passes it to Pythia. (Pythia's own time-based seed for 0 has a resolution of one second, so jobs started together produced identical events.) The same happens when no `--seed` is given in Python and the config has `Random:seed = 0`. The seed actually used is printed at startup and stored in the output as `jetlib/seed`. Rerunning with `--seed <that value>` reproduces the file.
+
+For planned production you can still give every job its own seed explicitly:
 
 ```bash
 ./jetlib -c ../config/ttbar.cfg -f out_17.root -n 1000 --seed 17
 ```
 
-In Python: `EventGenerator.setSeed(seed)` before `initialize()`.
+In Python: `EventGenerator.setSeed(seed)` before `initialize()`; `getSeed()` returns the seed actually used.

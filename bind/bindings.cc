@@ -41,7 +41,9 @@ PYBIND11_MODULE(jetlibpy, m) {
         .def("getNRemovedPromptLeptons", &EventGenerator::getNRemovedPromptLeptons)
         .def("getNFailedEvents", &EventGenerator::getNFailedEvents)
         .def("setSeed", &EventGenerator::setSeed, pybind11::arg("seed"),
-             "Override the config seed (0 = time-based, max 900000000). Call before initialize().");
+             "Override the config seed (0 = jetlib draws one, max 900000000). Call before initialize().")
+        .def("getSeed", &EventGenerator::getSeed, "Seed actually used (after initialize()); -1 = Pythia default seed")
+        .def("getRequestedSeed", &EventGenerator::getRequestedSeed);
 
     pybind11::class_<JetSelection>(m, "JetSelection")
         .def(pybind11::init<>())

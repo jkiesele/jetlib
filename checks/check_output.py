@@ -155,10 +155,15 @@ def main():
     with ThreadPoolExecutor(args.jobs) as ex:
         futs = {k: ex.submit(R.run, b, e, f"{k}.root", c) for k, (b, e, c) in jobs.items()}
         out = {k: f.result() for k, f in futs.items()}
-    # --seed 0 runs must start in different seconds (Pythia's time seed has 1 s resolution)
-    out["seed0_a"] = R.run(args.final_bin, ["--seed", "0"], "seed0_a.root")
-    time.sleep(1.5)
-    out["seed0_b"] = R.run(args.final_bin, ["--seed", "0"], "seed0_b.root")
+    # --seed 0 runs started at the same moment must still differ (jetlib draws the seed;
+    # Pythia's own time-based seed had 1 s resolution and made them identical)
+    with ThreadPoolExecutor(2) as ex:
+        fa = ex.submit(R.run, args.final_bin, ["--seed", "0"], "seed0_a.root")
+        fb = ex.submit(R.run, args.final_bin, ["--seed", "0"], "seed0_b.root")
+        out["seed0_a"], out["seed0_b"] = fa.result(), fb.result()
+    # the recorded seed must reproduce the run
+    drawn = uproot.open(out["seed0_a"][2])["jetlib/seed"].member("fTitle")
+    out["seed0_repro"] = R.run(args.final_bin, ["--seed", drawn], "seed0_repro.root")
     print(f"runs finished in {time.time() - t0:.0f} s, outputs in {R.workdir}\n")
 
     for k, (rc, log, _) in out.items():
@@ -174,7 +179,11 @@ def main():
 
     # 2. reproducibility
     check("same --seed twice identical", same_contents(p["seed_a"], p["seed_b"]), f"--seed {SEED}")
-    check("--seed 0 twice differs", not same_contents(p["seed0_a"], p["seed0_b"]), "runs started >1 s apart")
+    seeds0 = [uproot.open(p[k])["jetlib/seed"].member("fTitle") for k in ("seed0_a", "seed0_b")]
+    check("--seed 0 twice differs (started simultaneously)", not same_contents(p["seed0_a"], p["seed0_b"]),
+          f"drawn seeds {seeds0[0]} and {seeds0[1]}")
+    check("recorded seed reproduces a --seed 0 run", same_contents(p["seed0_a"], p["seed0_repro"]),
+          f"rerun with --seed {drawn}")
 
     # 3. |eta| window
     a = read(p["abseta"])

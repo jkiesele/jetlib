@@ -37,10 +37,6 @@ int run(const ArgumentParser& argParser, const std::string& commandLine) {
     std::cout << "Jet selection: " << selection.describe() << std::endl;
     std::cout << "Clustering pT threshold: " << clusterPtMin << " GeV" << std::endl;
     const long seed = argParser.getSeed();
-    std::cout << "Random seed: " << seed
-              << (seed == 0 ? " (time-based, 1 s resolution: jobs started in the same second produce"
-                              " identical events; use distinct --seed values for parallel jobs)" : "")
-              << std::endl;
 
     const bool keepPromptLeptons = argParser.keepPromptLeptons();
     std::cout << "Particles clustered: visible final state; neutrinos/invisibles removed; prompt e/mu "
@@ -54,6 +50,10 @@ int run(const ArgumentParser& argParser, const std::string& commandLine) {
     eventGen.setClusterPtMin(clusterPtMin);
     eventGen.setSeed(seed);
     eventGen.initialize();
+    const long effectiveSeed = eventGen.getSeed();
+    std::cout << "Random seed: " << effectiveSeed;
+    if (seed == 0) std::cout << " (drawn by jetlib; reproduce with --seed " << effectiveSeed << ")";
+    std::cout << std::endl;
 
     // Stream: each event is selected and written while its ClusterSequence is alive,
     // then freed, so memory does not grow with the number of events.
@@ -69,8 +69,8 @@ int run(const ArgumentParser& argParser, const std::string& commandLine) {
     jetAnalyzer.setMetadata("command_line", commandLine);
     jetAnalyzer.setMetadata("config_file", configFile);
     jetAnalyzer.setMetadata("config", eventGen.getConfigText());
-    jetAnalyzer.setMetadata("seed", seed == 0 ? "0 (time-based; the effective seed is not exposed by Pythia)"
-                                              : std::to_string(seed));
+    jetAnalyzer.setMetadata("seed", std::to_string(effectiveSeed));
+    jetAnalyzer.setMetadata("seed_requested", seed == 0 ? "0 (seed drawn by jetlib)" : std::to_string(seed));
     jetAnalyzer.setMetadata("pythia_version", str(eventGen.getPythiaVersion()));
     jetAnalyzer.setMetadata("fastjet_version", fastjet::fastjet_version_string());
     jetAnalyzer.setMetadata("jet_algorithm", "anti-kt, R = " + str(EventGenerator::kJetR));

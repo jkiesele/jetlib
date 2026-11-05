@@ -105,7 +105,7 @@ class ArgumentParser {
                 if (v < 0 || v > 900000000) {
                     std::cerr << "Error: --seed must be in [0, 900000000], got " << s
                               << ". Pythia's maximum is 900000000; negative seeds (Pythia's default seed)"
-                              << " are not accepted by jetlib. Use 0 for a time-based seed." << std::endl;
+                              << " are not accepted by jetlib. Use 0 to let jetlib draw a seed." << std::endl;
                     return false;
                 }
                 seed_ = static_cast<long>(v);
@@ -161,7 +161,8 @@ class ArgumentParser {
         std::cout << "  -n, --nEvents <number>   Number of events to generate, >= 1 (default: 1)" << std::endl;
         std::cout << "  -d, --debug              Enable debug mode" << std::endl;
         std::cout << "      --seed <int>         Pythia random seed in [0, 900000000], overrides the config file" << std::endl;
-        std::cout << "                           (default: 0 = time-based, different on every run)" << std::endl;
+        std::cout << "                           (default: 0 = jetlib draws a random seed; it is printed and" << std::endl;
+        std::cout << "                           stored in the output, so the run can be reproduced)" << std::endl;
         std::cout << "      --keep-prompt-leptons  Cluster prompt e/mu (from W/Z/tau, not from hadron decays)" << std::endl;
         std::cout << "                           (default: removed before clustering)" << std::endl;
         std::cout << "  Neutrinos and other invisible particles are never clustered." << std::endl;
