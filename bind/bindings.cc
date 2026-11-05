@@ -35,6 +35,7 @@ PYBIND11_MODULE(jetlibpy, m) {
         .def("getKeepPromptLeptons", &EventGenerator::getKeepPromptLeptons)
         .def("getNRemovedInvisible", &EventGenerator::getNRemovedInvisible)
         .def("getNRemovedPromptLeptons", &EventGenerator::getNRemovedPromptLeptons)
+        .def("getNFailedEvents", &EventGenerator::getNFailedEvents)
         .def("setSeed", &EventGenerator::setSeed, pybind11::arg("seed"),
              "Override the config seed (0 = time-based, max 900000000). Call before initialize().");
 

@@ -23,23 +23,40 @@ class EventGenerator {
         throw std::runtime_error("Could not open configuration file: " + configFile_);
       }
       std::string line;
+      int lineNumber = 0;
       while (std::getline(infile, line)) {
+        ++lineNumber;
         // Skip empty lines and comments
         if (line.empty() || line[0] == '#') continue;
-        pythia_.readString(line);
+        if (!pythia_.readString(line))
+          throw std::runtime_error("Pythia did not accept line " + std::to_string(lineNumber) +
+                                   " of " + configFile_ + ": '" + line + "'");
       }
       infile.close();
       // A seed set via setSeed() overrides whatever the config file says.
       if (hasSeed_) {
-        pythia_.readString("Random:setSeed = on");
-        pythia_.readString("Random:seed = " + std::to_string(seed_));
+        if (!pythia_.readString("Random:setSeed = on") ||
+            !pythia_.readString("Random:seed = " + std::to_string(seed_)))
+          throw std::runtime_error("Pythia did not accept the random seed " + std::to_string(seed_));
       }
-      pythia_.init();
+      if (!pythia_.init())
+        throw std::runtime_error("Pythia initialization failed for " + configFile_ +
+                                 " (see the PYTHIA messages above)");
     }
     
+    // Generates events until nEvents have been accepted. Failed pythia.next() calls are
+    // counted and retried; more failures than Main:timesAllowErrors (config, default 10)
+    // abort the run with an exception.
     void generateEvents(size_t nEvents) {
-      for (size_t iEvent = 0; iEvent < nEvents; ++iEvent) {
-        if (!pythia_.next()) continue;
+      const int maxFailed = pythia_.mode("Main:timesAllowErrors");
+      for (size_t accepted = 0; accepted < nEvents; ) {
+        if (!pythia_.next()) {
+          if (++nFailedEvents_ > static_cast<size_t>(maxFailed))
+            throw std::runtime_error("pythia.next() failed " + std::to_string(nFailedEvents_) +
+                                     " times, more than Main:timesAllowErrors = " + std::to_string(maxFailed));
+          continue;
+        }
+        ++accepted;
         const Pythia8::Event& event = pythia_.event;
         auto jetAnalysis = std::make_unique<JetAnalysis>(); 
         jetAnalysis->convertPythiaToPseudoJets(event, keepPromptLeptons_);
@@ -66,6 +83,8 @@ class EventGenerator {
     bool getKeepPromptLeptons() const { return keepPromptLeptons_; }
     size_t getNRemovedInvisible() const { return nRemovedInvisible_; }
     size_t getNRemovedPromptLeptons() const { return nRemovedPromptLeptons_; }
+    // number of failed (and retried) pythia.next() calls
+    size_t getNFailedEvents() const { return nFailedEvents_; }
 
     // Override the random seed of the config file. 0 means time-based seeding.
     // Negative values (Pythia's "default seed") are rejected by jetlib policy.
@@ -93,6 +112,7 @@ class EventGenerator {
     bool keepPromptLeptons_ = false;
     size_t nRemovedInvisible_ = 0;
     size_t nRemovedPromptLeptons_ = 0;
+    size_t nFailedEvents_ = 0;
     long seed_ = 0;
 };
 

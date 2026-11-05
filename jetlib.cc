@@ -58,6 +58,8 @@ int main(int argc, char** argv) {
     eventGen.generateEvents(nEvents);
     std::cout << "Removed before clustering: " << eventGen.getNRemovedInvisible() << " invisible particles, "
               << eventGen.getNRemovedPromptLeptons() << " prompt leptons" << std::endl;
+    std::cout << "Generated " << eventGen.getJetCollection().size() << " events ("
+              << eventGen.getNFailedEvents() << " failed pythia.next() calls retried)" << std::endl;
     const JetCollection& jets = eventGen.getJetCollection();
     if (debug) {
         printEventInfo(jets);
