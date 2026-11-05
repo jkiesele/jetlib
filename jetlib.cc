@@ -4,12 +4,11 @@
 #include "ArgumentParser.h"
 #include <algorithm>
 
-void printEventInfo(const JetCollection& jetCollection) {
-    for (size_t i = 0; i < jetCollection.size(); ++i) {
+void printEventInfo(const std::vector<fastjet::PseudoJet>& jets, size_t i) {
         std::cout << " *************\n";
-        std::cout << " Event " << i << " has " << jetCollection[i].size() << " jets." << std::endl;
-        for (size_t j = 0; j < jetCollection[i].size(); ++j) {
-            const auto& jet = jetCollection[i][j];
+        std::cout << " Event " << i << " has " << jets.size() << " jets." << std::endl;
+        for (size_t j = 0; j < jets.size(); ++j) {
+            const auto& jet = jets[j];
             std::cout << "  Jet " << j + 1 << ": pt = " << jet.pt() 
                       << ", eta = " << jet.eta() 
                       << ", phi = " << jet.phi() << std::endl;
@@ -21,7 +20,6 @@ void printEventInfo(const JetCollection& jetCollection) {
             }
         }
         std::cout << " *************\n";
-    }
 }
 
 int run(const ArgumentParser& argParser) {
@@ -52,17 +50,20 @@ int run(const ArgumentParser& argParser) {
     eventGen.setClusterPtMin(clusterPtMin);
     eventGen.setSeed(seed);
     eventGen.initialize();
-    eventGen.generateEvents(nEvents);
+
+    // Stream: each event is selected and written while its ClusterSequence is alive,
+    // then freed, so memory does not grow with the number of events.
+    jetAnalyzer.setSelection(selection);
+    jetAnalyzer.begin();
+    eventGen.generateEvents(nEvents, [&](const std::vector<fastjet::PseudoJet>& jets, size_t iEvent) {
+        if (debug) printEventInfo(jets, iEvent);
+        jetAnalyzer.fill(jets);
+    });
+    jetAnalyzer.finish();
     std::cout << "Removed before clustering: " << eventGen.getNRemovedInvisible() << " invisible particles, "
               << eventGen.getNRemovedPromptLeptons() << " prompt leptons" << std::endl;
-    std::cout << "Generated " << eventGen.getJetCollection().size() << " events ("
+    std::cout << "Generated " << eventGen.getNAcceptedEvents() << " events ("
               << eventGen.getNFailedEvents() << " failed pythia.next() calls retried)" << std::endl;
-    const JetCollection& jets = eventGen.getJetCollection();
-    if (debug) {
-        printEventInfo(jets);
-    }
-    jetAnalyzer.setSelection(selection);
-    jetAnalyzer.analyze(jets);
     return 0;
 }
 

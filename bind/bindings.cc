@@ -27,7 +27,9 @@ PYBIND11_MODULE(jetlibpy, m) {
     pybind11::class_<EventGenerator>(m, "EventGenerator")
         .def(pybind11::init<std::string>(), pybind11::arg("configFile") = "config.cfg")
         .def("initialize", &EventGenerator::initialize)
-        .def("generateEvents", &EventGenerator::generateEvents)
+        .def("generateEvents", [](EventGenerator& g, size_t nEvents) { g.generateEvents(nEvents); },
+             pybind11::arg("nEvents"), "Generate events and keep all jets for getJetCollection().")
+        .def("getNAcceptedEvents", &EventGenerator::getNAcceptedEvents)
         .def("getJetCollection", &EventGenerator::getJetCollection)
         .def("setClusterPtMin", &EventGenerator::setClusterPtMin, pybind11::arg("ptMin"))
         .def("getClusterPtMin", &EventGenerator::getClusterPtMin)
@@ -62,6 +64,9 @@ PYBIND11_MODULE(jetlibpy, m) {
     pybind11::class_<JetAnalyzer>(m, "JetAnalyzer")
         .def(pybind11::init<std::string>(), pybind11::arg("outputFilename") = "jet_analysis.root")
         .def("analyze", &JetAnalyzer::analyze)
+        .def("begin", &JetAnalyzer::begin)
+        .def("fill", &JetAnalyzer::fill, pybind11::arg("jets"))
+        .def("finish", &JetAnalyzer::finish)
         .def("setFilter", &JetAnalyzer::setFilter)
         .def("setSelection", &JetAnalyzer::setSelection)
         .def("getSelection", &JetAnalyzer::getSelection);

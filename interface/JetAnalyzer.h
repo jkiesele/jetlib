@@ -27,6 +27,11 @@ class JetAnalyzer {
     JetAnalyzer(const JetAnalyzer&) = delete;
     JetAnalyzer& operator=(const JetAnalyzer&) = delete;
 
+    // Streaming interface: begin() creates the tree, fill() writes the selected jets of
+    // one event, finish() writes the file. analyze() does all three for a full collection.
+    void begin();
+    void fill(const std::vector<fastjet::PseudoJet>& jets);
+    void finish();
     void analyze(const JetCollection& jetCollection);
     void setFilter(const std::string& filter);
     // Cut-based selection, applied in addition to an optional string filter.
@@ -34,6 +39,7 @@ class JetAnalyzer {
     const JetSelection& getSelection() const { return selection_; }
   private:
     std::unique_ptr<TFile> outputFile_;
+    TTree* tree_ = nullptr;   // owned by outputFile_
 
     std::vector<double> jetPt_;
     std::vector<double> jetEta_;

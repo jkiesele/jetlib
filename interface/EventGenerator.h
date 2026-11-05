@@ -5,6 +5,7 @@
 #include "JetAnalysis.h"
 #include "JetCollection.h"
 #include <fstream>
+#include <functional>
 #include <stdexcept>
 
 class EventGenerator {
@@ -44,10 +45,17 @@ class EventGenerator {
                                  " (see the PYTHIA messages above)");
     }
     
+    // Called once per accepted event with its clustered jets and the event index
+    // (0-based, counting accepted events). The jets' ClusterSequence is alive only
+    // during the call, so constituents must be used or copied inside it.
+    using EventCallback = std::function<void(const std::vector<fastjet::PseudoJet>& jets, size_t eventIndex)>;
+
     // Generates events until nEvents have been accepted. Failed pythia.next() calls are
     // counted and retried; more failures than Main:timesAllowErrors (config, default 10)
     // abort the run with an exception.
-    void generateEvents(size_t nEvents) {
+    // With onEvent, each event is handed over and then freed (constant memory).
+    // Without it, all jets and their ClusterSequences are kept for getJetCollection().
+    void generateEvents(size_t nEvents, const EventCallback& onEvent = nullptr) {
       const int maxFailed = pythia_.mode("Main:timesAllowErrors");
       for (size_t accepted = 0; accepted < nEvents; ) {
         if (!pythia_.next()) {
@@ -57,15 +65,20 @@ class EventGenerator {
           continue;
         }
         ++accepted;
+        const size_t eventIndex = nAcceptedEvents_++;
         const Pythia8::Event& event = pythia_.event;
         auto jetAnalysis = std::make_unique<JetAnalysis>(); 
         jetAnalysis->convertPythiaToPseudoJets(event, keepPromptLeptons_);
         nRemovedInvisible_ += jetAnalysis->nRemovedInvisible();
         nRemovedPromptLeptons_ += jetAnalysis->nRemovedPromptLeptons();
         jetAnalysis->clusterJets(0.4, clusterPtMin_);
-        auto jets = jetAnalysis->getJets(clusterPtMin_);    
-        jetCollection_.push_back(jets);
-        jetAnalysisCollection_.push_back(std::move(jetAnalysis));
+        auto jets = jetAnalysis->getJets(clusterPtMin_);
+        if (onEvent) {
+          onEvent(jets, eventIndex);   // jetAnalysis (and its ClusterSequence) is freed afterwards
+        } else {
+          jetCollection_.push_back(jets);
+          jetAnalysisCollection_.push_back(std::move(jetAnalysis));
+        }
       }
     }
 
@@ -85,6 +98,8 @@ class EventGenerator {
     size_t getNRemovedPromptLeptons() const { return nRemovedPromptLeptons_; }
     // number of failed (and retried) pythia.next() calls
     size_t getNFailedEvents() const { return nFailedEvents_; }
+    // number of accepted events over all generateEvents() calls
+    size_t getNAcceptedEvents() const { return nAcceptedEvents_; }
 
     // Override the random seed of the config file. 0 means time-based seeding.
     // Negative values (Pythia's "default seed") are rejected by jetlib policy.
@@ -113,6 +128,7 @@ class EventGenerator {
     size_t nRemovedInvisible_ = 0;
     size_t nRemovedPromptLeptons_ = 0;
     size_t nFailedEvents_ = 0;
+    size_t nAcceptedEvents_ = 0;
     long seed_ = 0;
 };
 

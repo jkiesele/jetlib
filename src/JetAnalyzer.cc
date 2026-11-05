@@ -179,37 +179,50 @@ bool JetAnalyzer::passesFilter(const fastjet::PseudoJet& jet) const {
     return filterConditions_(jet);
 }
 
-void JetAnalyzer::analyze(const JetCollection& jetCollection) {
+void JetAnalyzer::begin() {
     // Create the tree in this analyzer's file, not in whatever gDirectory currently is
-    // (another JetAnalyzer may have opened a file in the meantime).
+    // (another JetAnalyzer may have opened a file in the meantime). Because the tree
+    // belongs to a file, ROOT flushes its baskets to disk while filling.
     TDirectory::TContext context(outputFile_.get());
-    TTree* tree = new TTree("JetTree", "Jet Analysis Tree");
-    setBranches(tree);
+    tree_ = new TTree("JetTree", "Jet Analysis Tree");
+    setBranches(tree_);
+}
 
-    for (const auto& jets : jetCollection) {
-        for (const auto& jet : jets) {
-            if (!passesFilter(jet)) continue;
-            
-            jetPt_.push_back(jet.pt());
-            jetEta_.push_back(jet.eta());
-            jetPhi_.push_back(jet.phi_std());
-            jetEnergy_.push_back(jet.e());
-            jetNConstituents_.push_back(jet.constituents().size());
+void JetAnalyzer::fill(const std::vector<fastjet::PseudoJet>& jets) {
+    if (!tree_) throw std::logic_error("JetAnalyzer::fill called before begin()");
+    // jet.constituents() needs the jets' ClusterSequence to be alive during this call
+    for (const auto& jet : jets) {
+        if (!passesFilter(jet)) continue;
+        
+        jetPt_.push_back(jet.pt());
+        jetEta_.push_back(jet.eta());
+        jetPhi_.push_back(jet.phi_std());
+        jetEnergy_.push_back(jet.e());
+        jetNConstituents_.push_back(jet.constituents().size());
 
-            for (const auto& constituent : jet.constituents()) {
-                jetConstituentsPx_.push_back(constituent.px());
-                jetConstituentsPy_.push_back(constituent.py());
-                jetConstituentsPz_.push_back(constituent.pz());
-                jetConstituentsE_.push_back(constituent.e());
-                jetConstituentsPt_.push_back(constituent.pt());
-                jetConsituentsEta_.push_back(constituent.eta());
-                jetConstituentsPhi_.push_back(constituent.phi_std());
-                jetConstituentsPdgId_.push_back(constituent.user_index());
-            }
-            tree->Fill();
-            clear();
+        for (const auto& constituent : jet.constituents()) {
+            jetConstituentsPx_.push_back(constituent.px());
+            jetConstituentsPy_.push_back(constituent.py());
+            jetConstituentsPz_.push_back(constituent.pz());
+            jetConstituentsE_.push_back(constituent.e());
+            jetConstituentsPt_.push_back(constituent.pt());
+            jetConsituentsEta_.push_back(constituent.eta());
+            jetConstituentsPhi_.push_back(constituent.phi_std());
+            jetConstituentsPdgId_.push_back(constituent.user_index());
         }
+        tree_->Fill();
+        clear();
     }
+}
 
+void JetAnalyzer::finish() {
+    if (!tree_) throw std::logic_error("JetAnalyzer::finish called before begin()");
     outputFile_->Write();
+    tree_ = nullptr;
+}
+
+void JetAnalyzer::analyze(const JetCollection& jetCollection) {
+    begin();
+    for (const auto& jets : jetCollection) fill(jets);
+    finish();
 }
