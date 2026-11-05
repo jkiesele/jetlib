@@ -8,14 +8,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include_directories(${PROJECT_SOURCE_DIR}/interface)
 
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
-find_package(ROOT REQUIRED COMPONENTS RIO Net)
+find_package(ROOT REQUIRED COMPONENTS RIO Tree)
 include("${ROOT_USE_FILE}")
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include_directories(${ROOT_INCLUDE_DIR})
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-include_directories(${ROOT_INCLUDE_DIR} ${ROOTSYS})
 
 #----------------------------------------------------------------------------
 # Find Pyhia8 
@@ -23,12 +18,15 @@ include_directories(${ROOT_INCLUDE_DIR} ${ROOTSYS})
 find_package(Pythia8 REQUIRED)
 include_directories(${PYTHIA8_INCLUDE_DIRS})
 #----------------------------------------------------------------------------
-# Find FastJet using fastjet-config
+# Find FastJet using fastjet-config: from FASTJET_DIR (cmake -DFASTJET_DIR=...),
+# otherwise from PATH
 #
-find_program(FASTJET_CONFIG fastjet-config PATHS /opt/fastjet-3.5.0/bin)
+set(FASTJET_DIR "/opt/fastjet-3.5.0" CACHE PATH "FastJet installation prefix (contains bin/fastjet-config)")
+find_program(FASTJET_CONFIG fastjet-config PATHS ${FASTJET_DIR}/bin)
 if(NOT FASTJET_CONFIG)
-    message(FATAL_ERROR "fastjet-config not found")
+    message(FATAL_ERROR "fastjet-config not found; set -DFASTJET_DIR=<FastJet prefix> or add it to PATH")
 endif()
+message(STATUS "FastJet: ${FASTJET_CONFIG}")
 
 # Get FastJet compilation flags
 execute_process(COMMAND ${FASTJET_CONFIG} --cxxflags
@@ -69,7 +67,7 @@ if(BIND_SOURCES)
 endif()
 
 #----------------------------------------------------------------------------
-# Add the executable, and link it to the Geant4 and Python libraries
+# The jetlib executable
 #
 
 # Git version of the sources, regenerated on every build (only rewritten when it changes)
@@ -79,7 +77,6 @@ add_custom_target(jetlib_version
             -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
     BYPRODUCTS ${JETLIB_GENERATED_DIR}/JetlibVersion.h)
 
-# Add the main.cc executable
 add_executable(jetlib jetlib.cc ${sources} ${headers})
 add_dependencies(jetlib jetlib_version)
 target_include_directories(jetlib PRIVATE ${JETLIB_GENERATED_DIR})
