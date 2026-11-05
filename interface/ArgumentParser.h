@@ -29,11 +29,16 @@ class ArgumentParser {
         return false;
     }
 
-    // Default selection: reproduces the former hardcoded filter "eta > 1.7 && pt > 30".
+    bool etaMinSet_ = false;
+
+    // Default selection: pt > 30 GeV and -3 < eta < 3 (|eta| < 3 with --abs-eta).
+    static constexpr double kDefaultPtMin = 30.0;
+    static constexpr double kDefaultEtaMax = 3.0;
     static JetSelection defaultSelection() {
         JetSelection sel;
-        sel.ptMin = 30.0;
-        sel.etaMin = 1.7;
+        sel.ptMin = kDefaultPtMin;
+        sel.etaMin = -kDefaultEtaMax;
+        sel.etaMax = kDefaultEtaMax;
         return sel;
     }
     
@@ -70,7 +75,7 @@ class ArgumentParser {
                 if (!parseDouble(arg, argv[++i], v)) return false;
                 if (arg == "--pt-min") selection_.ptMin = v;
                 else if (arg == "--pt-max") selection_.ptMax = v;
-                else if (arg == "--eta-min") selection_.etaMin = v;
+                else if (arg == "--eta-min") { selection_.etaMin = v; etaMinSet_ = true; }
                 else selection_.etaMax = v;
             }
             else if (arg == "--seed") {
@@ -126,6 +131,8 @@ class ArgumentParser {
                 return false;
             }
         }
+        // With --abs-eta the default lower bound -3 is meaningless: the default becomes |eta| < 3.
+        if (selection_.absEta && !etaMinSet_) selection_.etaMin = -JetSelection::kInf;
         try {
             selection_.validate();
         } catch (const std::invalid_argument& e) {
@@ -148,11 +155,11 @@ class ArgumentParser {
         std::cout << "                           (default: removed before clustering)" << std::endl;
         std::cout << "  Neutrinos and other invisible particles are never clustered." << std::endl;
         std::cout << std::endl;
-        std::cout << "Jet selection (all cuts strict; default: pt > 30 && eta > 1.7):" << std::endl;
+        std::cout << "Jet selection (all cuts strict; default: pt > 30 && -3 < eta < 3):" << std::endl;
         std::cout << "      --pt-min <GeV>       Minimum jet pT (default: 30, must be >= 0)" << std::endl;
         std::cout << "      --pt-max <GeV>       Maximum jet pT (default: none)" << std::endl;
-        std::cout << "      --eta-min <value>    Minimum jet eta (default: 1.7)" << std::endl;
-        std::cout << "      --eta-max <value>    Maximum jet eta (default: none)" << std::endl;
+        std::cout << "      --eta-min <value>    Minimum jet eta (default: -3; none with --abs-eta)" << std::endl;
+        std::cout << "      --eta-max <value>    Maximum jet eta (default: 3)" << std::endl;
         std::cout << "      --abs-eta            Apply the eta cuts to |eta| (default: signed eta)" << std::endl;
         std::cout << "  The clustering threshold is min(20 GeV, pt-min), so it never cuts harder than --pt-min." << std::endl;
         std::cout << std::endl;

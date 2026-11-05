@@ -24,15 +24,17 @@ The numbers of removed particles are printed at the end of the run. In Python: `
 
 ## Jet selection
 
-By default jetlib writes jets with `pt > 30` GeV and signed `eta > 1.7`, with no upper limits. The selection can be changed on the command line. All cuts are strict (`> min`, `< max`).
+By default jetlib writes jets with `pt > 30` GeV and `-3 < eta < 3`. The selection can be changed on the command line. All cuts are strict (`> min`, `< max`).
 
 | Option | Meaning | Default |
 |---|---|---|
 | `--pt-min <GeV>` | minimum jet pT, must be >= 0 | 30 |
 | `--pt-max <GeV>` | maximum jet pT | none |
-| `--eta-min <value>` | minimum jet η | 1.7 |
-| `--eta-max <value>` | maximum jet η | none |
+| `--eta-min <value>` | minimum jet η | −3 (none with `--abs-eta`) |
+| `--eta-max <value>` | maximum jet η | 3 |
 | `--abs-eta` | apply the η cuts to \|η\| | off (signed η) |
+
+Setting only one η bound keeps the default for the other: `--eta-min 1.7` selects 1.7 < η < 3. With `--abs-eta` alone, the selection is |η| < 3. The selection before this option existed (η > 1.7, no upper limit) can be approximated with `--eta-min 1.7 --eta-max 100`.
 
 The clustering keeps jets above `min(20 GeV, --pt-min)`, so it never cuts harder than the selection. Inconsistent cuts (min ≥ max, negative pT, negative η bounds with `--abs-eta`) are rejected with an error. The active selection is printed at startup.
 
