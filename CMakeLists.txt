@@ -46,11 +46,6 @@ execute_process(COMMAND ${FASTJET_CONFIG} --prefix
 set(FASTJET_INCLUDE_DIR "${FASTJET_PREFIX}/include")
 include_directories(${FASTJET_INCLUDE_DIR})
 
-#----------------------------------------------------------------------------
-# Find Python and pybind11
-#
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-add_subdirectory(extern/pybind11)
 
 #----------------------------------------------------------------------------
 # Locate sources and headers for this project
@@ -59,9 +54,19 @@ add_subdirectory(extern/pybind11)
 file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
 file(GLOB headers ${PROJECT_SOURCE_DIR}/interface/*.h)
 
-# collect bindings sources and headers
-file(GLOB_RECURSE BIND_SOURCES "${PROJECT_SOURCE_DIR}/bind/*.cc")
-if(BIND_SOURCES)
+#----------------------------------------------------------------------------
+# Python module jetlibpy (needs Python 3 development files and the pybind11
+# submodule: git submodule update --init). -DJETLIB_PYTHON=OFF builds only the CLI.
+#
+option(JETLIB_PYTHON "Build the Python module jetlibpy" ON)
+if(JETLIB_PYTHON)
+    if(NOT EXISTS ${PROJECT_SOURCE_DIR}/extern/pybind11/CMakeLists.txt)
+        message(FATAL_ERROR "extern/pybind11 is empty: run 'git submodule update --init', "
+                            "or configure with -DJETLIB_PYTHON=OFF to build only the jetlib executable")
+    endif()
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    add_subdirectory(extern/pybind11)
+    file(GLOB_RECURSE BIND_SOURCES "${PROJECT_SOURCE_DIR}/bind/*.cc")
     pybind11_add_module(jetlibpy ${BIND_SOURCES} ${sources})
     target_link_libraries(jetlibpy PRIVATE ${PYTHIA8_LIBRARIES} ${FASTJET_LIBRARIES} ${ROOT_LIBRARIES})
 endif()
