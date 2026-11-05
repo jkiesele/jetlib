@@ -77,10 +77,17 @@ def read(path):
     return uproot.open(path)["JetTree"].arrays(library="np")
 
 
+# branches renamed since older builds: old name -> new name
+RENAMED = {"jetConsituentsEta": "jetConstituentsEta"}
+
+
 def same_contents(p1, p2, subset_of=None):
     """True if both trees have identical contents. With subset_of=p2, only the branches
-    of p2 are compared and p1 may have additional ones (for older reference builds)."""
+    of p2 are compared and p1 may have additional ones (for older reference builds);
+    branches of p2 that were renamed since (RENAMED) are compared under their new name."""
     a, b = read(p1), read(p2)
+    if subset_of is not None:
+        b = {(RENAMED.get(k, k) if RENAMED.get(k) in a else k): v for k, v in b.items()}
     if subset_of is None and sorted(a) != sorted(b):
         return False
     if subset_of is not None and not set(b) <= set(a):

@@ -16,7 +16,7 @@ void JetAnalyzer::setBranches(TTree* tree) {
     tree->Branch("jetConstituentsPz", &jetConstituentsPz_);
     tree->Branch("jetConstituentsPt", &jetConstituentsPt_);
     tree->Branch("jetConstituentsE", &jetConstituentsE_);
-    tree->Branch("jetConsituentsEta", &jetConsituentsEta_);
+    tree->Branch("jetConstituentsEta", &jetConstituentsEta_);
     tree->Branch("jetConstituentsPhi", &jetConstituentsPhi_);
     tree->Branch("jetConstituentsPdgId", &jetConstituentsPdgId_);
     // event bookkeeping (plain scalars)
@@ -223,7 +223,7 @@ void JetAnalyzer::fill(const std::vector<fastjet::PseudoJet>& jets, long long ev
             jetConstituentsPz_.push_back(constituent.pz());
             jetConstituentsE_.push_back(constituent.e());
             jetConstituentsPt_.push_back(constituent.pt());
-            jetConsituentsEta_.push_back(constituent.eta());
+            jetConstituentsEta_.push_back(constituent.eta());
             jetConstituentsPhi_.push_back(constituent.phi_std());
             jetConstituentsPdgId_.push_back(constituent.user_index());
         }

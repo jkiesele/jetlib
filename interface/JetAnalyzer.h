@@ -56,7 +56,7 @@ class JetAnalyzer {
     std::vector<double> jetConstituentsPz_;
     std::vector<double> jetConstituentsPt_;
     std::vector<double> jetConstituentsE_;
-    std::vector<double> jetConsituentsEta_;
+    std::vector<double> jetConstituentsEta_;
     std::vector<double> jetConstituentsPhi_;
     std::vector<int> jetConstituentsPdgId_;
     Long64_t eventIndex_ = 0;   // index of the accepted event in this run
@@ -75,7 +75,7 @@ class JetAnalyzer {
       jetConstituentsPz_.clear();
       jetConstituentsPt_.clear();
       jetConstituentsE_.clear();
-      jetConsituentsEta_.clear();
+      jetConstituentsEta_.clear();
       jetConstituentsPhi_.clear();
       jetConstituentsPdgId_.clear();
     }

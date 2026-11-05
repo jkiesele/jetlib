@@ -48,7 +48,7 @@ In Python the same selection is a `jetlibpy.JetSelection` passed to `JetAnalyzer
 
 ## Output
 
-One jet per entry of the `JetTree` tree. Per-jet kinematics: `jetPt`, `jetEta`, `jetPhi`, `jetEnergy`, `jetNConstituents`. Constituents: `jetConstituentsPx/Py/Pz/Pt/E/Phi/PdgId` and `jetConsituentsEta` (sic). Bookkeeping:
+One jet per entry of the `JetTree` tree. Per-jet kinematics: `jetPt`, `jetEta`, `jetPhi`, `jetEnergy`, `jetNConstituents`. Constituents: `jetConstituentsPx/Py/Pz/Pt/E/Eta/Phi/PdgId`. The branch `jetConstituentsEta` was called `jetConsituentsEta` (misspelt) before; readers of older files need the old name. Bookkeeping:
 
 - `eventIndex`: index of the generated event in this run (0-based). Jets with the same `eventIndex` come from the same Pythia event.
 - `jetIndex`: pT rank of the jet among the selected jets of its event (0 = hardest).
