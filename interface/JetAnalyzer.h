@@ -37,8 +37,8 @@ class JetAnalyzer {
     // directory "jetlib" of the output file, together with n_jets_written.
     void setMetadata(const std::string& name, const std::string& value) { metadata_[name] = value; }
     void analyze(const JetCollection& jetCollection);
-    // Optional string filter, e.g. "pt > 30 && abs(eta) < 2.5" (variables pt, eta, phi,
-    // e/energy; abs(); operators > < >= <= == !=; && || and parentheses). It is parsed
+    // Optional string filter, e.g. "pt > 30 && abs(eta) < 2.5" (variables pt, eta, phi in
+    // [-pi, pi), e/energy; abs(); operators > < >= <= == !=; && || and parentheses). It is parsed
     // and validated here: an invalid filter throws std::invalid_argument. "" removes it.
     void setFilter(const std::string& filter);
     // Cut-based selection, applied in addition to an optional string filter.

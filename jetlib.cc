@@ -15,12 +15,12 @@ void printEventInfo(const std::vector<fastjet::PseudoJet>& jets, size_t i) {
             const auto& jet = jets[j];
             std::cout << "  Jet " << j + 1 << ": pt = " << jet.pt() 
                       << ", eta = " << jet.eta() 
-                      << ", phi = " << jet.phi() << std::endl;
+                      << ", phi = " << jet.phi_std() << std::endl;
             for (int k = 0; k < jet.constituents().size(); ++k) {
                 const auto& constituent = jet.constituents()[k];
                 std::cout << "    Constituent " << k + 1 << ": pt = " << constituent.pt() 
                           << ", eta = " << constituent.eta() 
-                          << ", phi = " << constituent.phi() << std::endl;
+                          << ", phi = " << constituent.phi_std() << std::endl;
             }
         }
         std::cout << " *************\n";

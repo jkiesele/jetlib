@@ -32,7 +32,7 @@ namespace {
 //   and  := atom ( "&&" atom )*
 //   atom := "(" or ")" | cond
 //   cond := var op number      var := name | "abs(" name ")"
-//   name := pt | eta | phi | e | energy   op := > < >= <= == !=
+//   name := pt | eta | phi | e | energy   op := > < >= <= == !=   (phi in [-pi, pi))
 // Every error (unknown variable or operator, missing term, trailing characters,
 // unbalanced parentheses, bad number) throws std::invalid_argument when the filter is set.
 using Pred = std::function<bool(const fastjet::PseudoJet&)>;
@@ -108,7 +108,7 @@ class FilterParser {
         double (*var)(const fastjet::PseudoJet&) = nullptr;
         if (name == "pt") var = [](const fastjet::PseudoJet& j) { return j.pt(); };
         else if (name == "eta") var = [](const fastjet::PseudoJet& j) { return j.eta(); };
-        else if (name == "phi") var = [](const fastjet::PseudoJet& j) { return j.phi(); };
+        else if (name == "phi") var = [](const fastjet::PseudoJet& j) { return j.phi_std(); };  // [-pi, pi), as in the tree
         else if (name == "e" || name == "energy") var = [](const fastjet::PseudoJet& j) { return j.e(); };
         else fail("unknown variable '" + name + "' (known: pt, eta, phi, e, energy)");
 
