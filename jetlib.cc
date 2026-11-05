@@ -3,6 +3,10 @@
 #include <iostream>
 #include "ArgumentParser.h"
 #include <algorithm>
+#include <sstream>
+#include "fastjet/ClusterSequence.hh"
+#include "fastjet/PseudoJet.hh"
+#include "JetlibVersion.h"
 
 void printEventInfo(const std::vector<fastjet::PseudoJet>& jets, size_t i) {
         std::cout << " *************\n";
@@ -22,7 +26,7 @@ void printEventInfo(const std::vector<fastjet::PseudoJet>& jets, size_t i) {
         std::cout << " *************\n";
 }
 
-int run(const ArgumentParser& argParser) {
+int run(const ArgumentParser& argParser, const std::string& commandLine) {
     bool debug = argParser.isDebug();
     size_t nEvents = argParser.getNEvents();
     std::string configFile = argParser.getConfigFile();
@@ -59,6 +63,26 @@ int run(const ArgumentParser& argParser) {
         if (debug) printEventInfo(jets, iEvent);
         jetAnalyzer.fill(jets, static_cast<long long>(iEvent));
     });
+    // provenance, stored in the "jetlib" directory of the output file
+    auto str = [](double v) { std::ostringstream s; s << v; return s.str(); };
+    jetAnalyzer.setMetadata("jetlib_version", JETLIB_GIT_VERSION);
+    jetAnalyzer.setMetadata("command_line", commandLine);
+    jetAnalyzer.setMetadata("config_file", configFile);
+    jetAnalyzer.setMetadata("config", eventGen.getConfigText());
+    jetAnalyzer.setMetadata("seed", seed == 0 ? "0 (time-based; the effective seed is not exposed by Pythia)"
+                                              : std::to_string(seed));
+    jetAnalyzer.setMetadata("pythia_version", str(eventGen.getPythiaVersion()));
+    jetAnalyzer.setMetadata("fastjet_version", fastjet::fastjet_version_string());
+    jetAnalyzer.setMetadata("jet_algorithm", "anti-kt, R = " + str(EventGenerator::kJetR));
+    jetAnalyzer.setMetadata("cluster_pt_min", str(clusterPtMin));
+    jetAnalyzer.setMetadata("selection", selection.describe());
+    jetAnalyzer.setMetadata("particles", std::string("visible final state; invisibles removed; prompt e/mu ") +
+                                         (keepPromptLeptons ? "kept" : "removed"));
+    jetAnalyzer.setMetadata("n_events_requested", std::to_string(nEvents));
+    jetAnalyzer.setMetadata("n_events_accepted", std::to_string(eventGen.getNAcceptedEvents()));
+    jetAnalyzer.setMetadata("n_failed_next", std::to_string(eventGen.getNFailedEvents()));
+    jetAnalyzer.setMetadata("n_removed_invisible", std::to_string(eventGen.getNRemovedInvisible()));
+    jetAnalyzer.setMetadata("n_removed_prompt_leptons", std::to_string(eventGen.getNRemovedPromptLeptons()));
     jetAnalyzer.finish();
     std::cout << "Removed before clustering: " << eventGen.getNRemovedInvisible() << " invisible particles, "
               << eventGen.getNRemovedPromptLeptons() << " prompt leptons" << std::endl;
@@ -73,7 +97,9 @@ int main(int argc, char** argv) {
         return argParser.helpRequested() ? 0 : 1;
     }
     try {
-        return run(argParser);
+        std::string commandLine;
+        for (int i = 0; i < argc; ++i) commandLine += (i ? " " : "") + std::string(argv[i]);
+        return run(argParser, commandLine);
     } catch (const fastjet::Error& e) {
         std::cerr << "Error (FastJet): " << e.message() << std::endl;
     } catch (const std::exception& e) {

@@ -12,6 +12,7 @@ class EventGenerator {
   public:
     static constexpr long kSeedMin = 0;           // 0 = time-based seed in Pythia
     static constexpr long kSeedMax = 900000000;   // Pythia's upper limit for Random:seed
+    static constexpr double kJetR = 0.4;          // anti-kT radius
 
     EventGenerator(const std::string& configFile) : configFile_(configFile) {};
     ~EventGenerator() {};
@@ -27,6 +28,7 @@ class EventGenerator {
       int lineNumber = 0;
       while (std::getline(infile, line)) {
         ++lineNumber;
+        configText_ += line + "\n";
         // Skip empty lines and comments
         if (line.empty() || line[0] == '#') continue;
         if (!pythia_.readString(line))
@@ -71,7 +73,7 @@ class EventGenerator {
         jetAnalysis->convertPythiaToPseudoJets(event, keepPromptLeptons_);
         nRemovedInvisible_ += jetAnalysis->nRemovedInvisible();
         nRemovedPromptLeptons_ += jetAnalysis->nRemovedPromptLeptons();
-        jetAnalysis->clusterJets(0.4, clusterPtMin_);
+        jetAnalysis->clusterJets(kJetR, clusterPtMin_);
         auto jets = jetAnalysis->getJets(clusterPtMin_);
         if (onEvent) {
           onEvent(jets, eventIndex);   // jetAnalysis (and its ClusterSequence) is freed afterwards
@@ -100,6 +102,9 @@ class EventGenerator {
     size_t getNFailedEvents() const { return nFailedEvents_; }
     // number of accepted events over all generateEvents() calls
     size_t getNAcceptedEvents() const { return nAcceptedEvents_; }
+    // full text of the config file read by initialize()
+    const std::string& getConfigText() const { return configText_; }
+    double getPythiaVersion() { return pythia_.parm("Pythia:versionNumber"); }
 
     // Override the random seed of the config file. 0 means time-based seeding.
     // Negative values (Pythia's "default seed") are rejected by jetlib policy.
@@ -122,6 +127,7 @@ class EventGenerator {
     JetCollection jetCollection_;
     std::vector<std::unique_ptr<JetAnalysis>> jetAnalysisCollection_;
     std::string configFile_;
+    std::string configText_;
     double clusterPtMin_ = 20.0;
     bool hasSeed_ = false;
     bool keepPromptLeptons_ = false;

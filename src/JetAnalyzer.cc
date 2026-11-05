@@ -1,4 +1,5 @@
 #include "JetAnalyzer.h"
+#include "TNamed.h"
 #include <sstream>
 #include <cmath>
 #include <iostream>
@@ -233,6 +234,12 @@ void JetAnalyzer::fill(const std::vector<fastjet::PseudoJet>& jets, long long ev
 
 void JetAnalyzer::finish() {
     if (!tree_) throw std::logic_error("JetAnalyzer::finish called before begin()");
+    metadata_["n_jets_written"] = std::to_string(tree_->GetEntries());
+    TDirectory* dir = outputFile_->mkdir("jetlib", "jetlib provenance", true);
+    for (const auto& kv : metadata_) {
+        TNamed entry(kv.first.c_str(), kv.second.c_str());
+        dir->WriteTObject(&entry, kv.first.c_str(), "Overwrite");
+    }
     outputFile_->Write();
     tree_ = nullptr;
 }

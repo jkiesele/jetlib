@@ -72,8 +72,17 @@ endif()
 # Add the executable, and link it to the Geant4 and Python libraries
 #
 
+# Git version of the sources, regenerated on every build (only rewritten when it changes)
+set(JETLIB_GENERATED_DIR ${CMAKE_BINARY_DIR}/generated)
+add_custom_target(jetlib_version
+    COMMAND ${CMAKE_COMMAND} -DSRC=${PROJECT_SOURCE_DIR} -DOUT=${JETLIB_GENERATED_DIR}/JetlibVersion.h
+            -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
+    BYPRODUCTS ${JETLIB_GENERATED_DIR}/JetlibVersion.h)
+
 # Add the main.cc executable
 add_executable(jetlib jetlib.cc ${sources} ${headers})
+add_dependencies(jetlib jetlib_version)
+target_include_directories(jetlib PRIVATE ${JETLIB_GENERATED_DIR})
 target_link_libraries(jetlib ${PYTHIA8_LIBRARIES} ${FASTJET_LIBRARIES} ${ROOT_LIBRARIES})
 
 #----------------------------------------------------------------------------

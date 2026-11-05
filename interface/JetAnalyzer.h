@@ -9,6 +9,7 @@
 #include "TDirectory.h"
 #include <string>
 #include <functional>
+#include <map>
 #include <memory>
 #include <stdexcept>
 class JetAnalyzer {
@@ -32,6 +33,9 @@ class JetAnalyzer {
     void begin();
     void fill(const std::vector<fastjet::PseudoJet>& jets, long long eventIndex);
     void finish();
+    // Provenance: stored by finish() as TNamed objects (name, title = value) in the
+    // directory "jetlib" of the output file, together with n_jets_written.
+    void setMetadata(const std::string& name, const std::string& value) { metadata_[name] = value; }
     void analyze(const JetCollection& jetCollection);
     void setFilter(const std::string& filter);
     // Cut-based selection, applied in addition to an optional string filter.
@@ -40,6 +44,7 @@ class JetAnalyzer {
   private:
     std::unique_ptr<TFile> outputFile_;
     TTree* tree_ = nullptr;   // owned by outputFile_
+    std::map<std::string, std::string> metadata_;
 
     std::vector<double> jetPt_;
     std::vector<double> jetEta_;

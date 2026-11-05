@@ -53,6 +53,8 @@ One jet per entry of the `JetTree` tree. Per-jet kinematics: `jetPt`, `jetEta`, 
 - `eventIndex`: index of the generated event in this run (0-based). Jets with the same `eventIndex` come from the same Pythia event.
 - `jetIndex`: pT rank of the jet among the selected jets of its event (0 = hardest).
 
+Provenance is stored as `TNamed` objects (the value is the title) in the directory `jetlib/`: `jetlib_version` (git describe of the build), `command_line`, `config_file`, `config` (full text), `seed`, `pythia_version`, `fastjet_version`, `jet_algorithm`, `cluster_pt_min`, `selection`, `particles`, and the counters `n_events_requested`, `n_events_accepted`, `n_failed_next`, `n_removed_invisible`, `n_removed_prompt_leptons` and `n_jets_written`. With uproot: `uproot.open(f)["jetlib/seed"].member("fTitle")`.
+
 Jets are written event by event, so consecutive entries are correlated. Shuffle them, or sample by `eventIndex`, if that matters.
 
 ## Random seed
