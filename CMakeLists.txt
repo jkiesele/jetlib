@@ -83,6 +83,8 @@ add_custom_target(jetlib_version
 add_executable(jetlib jetlib.cc ${sources} ${headers})
 add_dependencies(jetlib jetlib_version)
 target_include_directories(jetlib PRIVATE ${JETLIB_GENERATED_DIR})
+# default config file: config/ttbar.cfg of this source tree
+target_compile_definitions(jetlib PRIVATE JETLIB_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 target_link_libraries(jetlib ${PYTHIA8_LIBRARIES} ${FASTJET_LIBRARIES} ${ROOT_LIBRARIES})
 
 #----------------------------------------------------------------------------

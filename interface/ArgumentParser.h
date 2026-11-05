@@ -7,6 +7,12 @@
 #include <stdexcept>
 #include "JetSelection.h"
 
+// Default config: config/ttbar.cfg of the source tree jetlib was built from (set by
+// CMake), so it does not depend on the working directory.
+#ifndef JETLIB_SOURCE_DIR
+#define JETLIB_SOURCE_DIR "."
+#endif
+
 class ArgumentParser {
   private:
     std::string filename_;
@@ -44,7 +50,9 @@ class ArgumentParser {
     }
     
   public:
-    ArgumentParser() : filename_("output.root"), configFile_("../config/ttbar.cfg"), debug_(false), nEvents_(1), selection_(defaultSelection()), seed_(0), keepPromptLeptons_(false) {}
+    static std::string defaultConfigFile() { return std::string(JETLIB_SOURCE_DIR) + "/config/ttbar.cfg"; }
+
+    ArgumentParser() : filename_("output.root"), configFile_(defaultConfigFile()), debug_(false), nEvents_(1), selection_(defaultSelection()), seed_(0), keepPromptLeptons_(false) {}
     
     bool parse(int argc, char** argv) {
         for (int i = 1; i < argc; ++i) {
@@ -70,7 +78,6 @@ class ArgumentParser {
             else if (arg == "--config" || arg == "-c") {
                 if (i + 1 < argc) {
                     configFile_ = argv[++i];
-                    std::cout << "Config file specified: " << configFile_ << std::endl;
                 } else {
                     std::cerr << "Error: " << arg << " requires a filename argument" << std::endl;
                     return false;
@@ -156,7 +163,8 @@ class ArgumentParser {
     void printUsage(const char* program_name) {
         std::cout << "Usage: " << program_name << " [options]" << std::endl;
         std::cout << "Options:" << std::endl;
-        std::cout << "  -c, --config <file>      Configuration file for Pythia (default: config/ttbar.cfg)" << std::endl;
+        std::cout << "  -c, --config <file>      Configuration file for Pythia" << std::endl;
+        std::cout << "                           (default: " << defaultConfigFile() << ")" << std::endl;
         std::cout << "  -f, --filename <file>    Output ROOT filename (default: output.root)" << std::endl;
         std::cout << "  -n, --nEvents <number>   Number of events to generate, >= 1 (default: 1)" << std::endl;
         std::cout << "  -d, --debug              Enable debug mode" << std::endl;

@@ -32,6 +32,7 @@ int run(const ArgumentParser& argParser, const std::string& commandLine) {
     std::string configFile = argParser.getConfigFile();
     std::string outputFilename = argParser.getFilename();
     const JetSelection& selection = argParser.getSelection();
+    std::cout << "Config file: " << configFile << std::endl;
     // the clustering threshold must never cut harder than the selection
     const double clusterPtMin = std::min(20.0, selection.ptMin);
     std::cout << "Jet selection: " << selection.describe() << std::endl;
