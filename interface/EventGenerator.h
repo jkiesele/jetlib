@@ -4,6 +4,8 @@
 #include "Pythia8/Pythia.h"
 #include "JetAnalysis.h"
 #include "JetCollection.h"
+#include <fstream>
+#include <stdexcept>
 
 class EventGenerator {
   public:
@@ -33,12 +35,20 @@ class EventGenerator {
         const Pythia8::Event& event = pythia_.event;
         auto jetAnalysis = std::make_unique<JetAnalysis>(); 
         jetAnalysis->convertPythiaToPseudoJets(event);
-        jetAnalysis->clusterJets(0.4);
-        auto jets = jetAnalysis->getJets(20.0);    
+        jetAnalysis->clusterJets(0.4, clusterPtMin_);
+        auto jets = jetAnalysis->getJets(clusterPtMin_);    
         jetCollection_.push_back(jets);
         jetAnalysisCollection_.push_back(std::move(jetAnalysis));
       }
     }
+
+    // Minimum jet pT kept after clustering (default 20 GeV). Must not exceed the
+    // pT threshold of the jet selection applied later.
+    void setClusterPtMin(double ptMin) {
+      if (!(ptMin >= 0)) throw std::invalid_argument("cluster pT threshold must not be negative");
+      clusterPtMin_ = ptMin;
+    }
+    double getClusterPtMin() const { return clusterPtMin_; }
 
     const JetCollection& getJetCollection() const {
       return jetCollection_;
@@ -49,6 +59,7 @@ class EventGenerator {
     JetCollection jetCollection_;
     std::vector<std::unique_ptr<JetAnalysis>> jetAnalysisCollection_;
     std::string configFile_;
+    double clusterPtMin_ = 20.0;
 };
 
 #endif

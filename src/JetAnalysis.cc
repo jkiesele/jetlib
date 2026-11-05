@@ -8,9 +8,9 @@ void JetAnalysis::convertPythiaToPseudoJets(const Pythia8::Event& event) {
       particles_.push_back(particle);
     }
 }
-void JetAnalysis::clusterJets(double R) {
+void JetAnalysis::clusterJets(double R, double ptMin) {
     
     fastjet::JetDefinition jetDef(fastjet::antikt_algorithm, R);
     clusterSeq_ = std::make_unique<fastjet::ClusterSequence>(particles_, jetDef);
-    jets_ = clusterSeq_->inclusive_jets(20.0); // minimum pt cut of 20 GeV
+    jets_ = clusterSeq_->inclusive_jets(ptMin);
 }

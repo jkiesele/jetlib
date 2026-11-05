@@ -4,6 +4,7 @@
 #include "EventGenerator.h"
 #include "JetAnalysis.h"
 #include "JetAnalyzer.h"
+#include "JetSelection.h"
 #include "fastjet/PseudoJet.hh"
 
 PYBIND11_MODULE(jetlibpy, m) {
@@ -27,11 +28,25 @@ PYBIND11_MODULE(jetlibpy, m) {
         .def(pybind11::init<std::string>(), pybind11::arg("configFile") = "config.cfg")
         .def("initialize", &EventGenerator::initialize)
         .def("generateEvents", &EventGenerator::generateEvents)
-        .def("getJetCollection", &EventGenerator::getJetCollection);
+        .def("getJetCollection", &EventGenerator::getJetCollection)
+        .def("setClusterPtMin", &EventGenerator::setClusterPtMin, pybind11::arg("ptMin"))
+        .def("getClusterPtMin", &EventGenerator::getClusterPtMin);
+
+    pybind11::class_<JetSelection>(m, "JetSelection")
+        .def(pybind11::init<>())
+        .def_readwrite("ptMin", &JetSelection::ptMin)
+        .def_readwrite("ptMax", &JetSelection::ptMax)
+        .def_readwrite("etaMin", &JetSelection::etaMin)
+        .def_readwrite("etaMax", &JetSelection::etaMax)
+        .def_readwrite("absEta", &JetSelection::absEta)
+        .def("validate", &JetSelection::validate)
+        .def("passes", &JetSelection::pass)
+        .def("describe", &JetSelection::describe)
+        .def("__repr__", [](const JetSelection& s) { return "JetSelection(" + s.describe() + ")"; });
 
     pybind11::class_<JetAnalysis>(m, "JetAnalysis")
         .def(pybind11::init<>())
-        .def("clusterJets", &JetAnalysis::clusterJets)
+        .def("clusterJets", &JetAnalysis::clusterJets, pybind11::arg("R"), pybind11::arg("ptMin") = 20.0)
         .def("getJets", &JetAnalysis::getJets)
         .def("convertPythiaToPseudoJets", &JetAnalysis::convertPythiaToPseudoJets)
         .def("clear", &JetAnalysis::clear);
@@ -39,5 +54,7 @@ PYBIND11_MODULE(jetlibpy, m) {
     pybind11::class_<JetAnalyzer>(m, "JetAnalyzer")
         .def(pybind11::init<std::string>(), pybind11::arg("outputFilename") = "jet_analysis.root")
         .def("analyze", &JetAnalyzer::analyze)
-        .def("setFilter", &JetAnalyzer::setFilter);
+        .def("setFilter", &JetAnalyzer::setFilter)
+        .def("setSelection", &JetAnalyzer::setSelection)
+        .def("getSelection", &JetAnalyzer::getSelection);
 }

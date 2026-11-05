@@ -13,7 +13,8 @@ class JetAnalysis {
     JetAnalysis() {};
     ~JetAnalysis() {};
 
-    void clusterJets(double R);
+    // ptMin: minimum jet pT kept by the clustering step
+    void clusterJets(double R, double ptMin = 20.0);
     std::vector<fastjet::PseudoJet> getJets(double ptMin) const {
       std::vector<fastjet::PseudoJet> selectedJets;
       for (const auto& jet : jets_) {

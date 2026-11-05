@@ -4,6 +4,7 @@
 #include <vector>
 #include "TFile.h"
 #include "JetCollection.h"
+#include "JetSelection.h"
 #include "TTree.h"
 #include <string>
 #include <functional>
@@ -18,6 +19,9 @@ class JetAnalyzer {
 
     void analyze(const JetCollection& jetCollection);
     void setFilter(const std::string& filter);
+    // Cut-based selection, applied in addition to an optional string filter.
+    void setSelection(const JetSelection& selection) { selection.validate(); selection_ = selection; }
+    const JetSelection& getSelection() const { return selection_; }
   private:
     TFile* outputFile_;
 
@@ -61,5 +65,6 @@ class JetAnalyzer {
 
     //std::vector<std::function<bool(const fastjet::PseudoJet&)>> filterConditions_;
     std::function<bool(const fastjet::PseudoJet&)> filterConditions_;
+    JetSelection selection_;
 };
 #endif

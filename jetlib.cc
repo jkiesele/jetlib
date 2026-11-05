@@ -2,6 +2,7 @@
 #include "JetAnalyzer.h"
 #include <iostream>
 #include "ArgumentParser.h"
+#include <algorithm>
 
 void printEventInfo(const JetCollection& jetCollection) {
     for (size_t i = 0; i < jetCollection.size(); ++i) {
@@ -34,8 +35,14 @@ int main(int argc, char** argv) {
     size_t nEvents = argParser.getNEvents();
     std::string configFile = argParser.getConfigFile();
     std::string outputFilename = argParser.getFilename();
+    const JetSelection& selection = argParser.getSelection();
+    // the clustering threshold must never cut harder than the selection
+    const double clusterPtMin = std::min(20.0, selection.ptMin);
+    std::cout << "Jet selection: " << selection.describe() << std::endl;
+    std::cout << "Clustering pT threshold: " << clusterPtMin << " GeV" << std::endl;
 
     EventGenerator eventGen(configFile);
+    eventGen.setClusterPtMin(clusterPtMin);
     eventGen.initialize();
     eventGen.generateEvents(nEvents);
     const JetCollection& jets = eventGen.getJetCollection();
@@ -43,8 +50,7 @@ int main(int argc, char** argv) {
         printEventInfo(jets);
     }
     JetAnalyzer jetAnalyzer(outputFilename);
-    jetAnalyzer.setFilter("eta > 1.7 && pt > 30");
-    //jetAnalyzer.setFilter("(abs(eta) < 1.2 || abs(eta) > 1.7) && pt > 300");
+    jetAnalyzer.setSelection(selection);
     jetAnalyzer.analyze(jets);
     return 0;
 }

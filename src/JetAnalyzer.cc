@@ -174,6 +174,7 @@ std::function<bool(const fastjet::PseudoJet&)> JetAnalyzer::parseCondition(const
 }
 
 bool JetAnalyzer::passesFilter(const fastjet::PseudoJet& jet) const {
+    if (!selection_.pass(jet)) return false;
     if (!filterConditions_) return true;
     return filterConditions_(jet);
 }
