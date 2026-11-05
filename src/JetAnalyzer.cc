@@ -18,6 +18,9 @@ void JetAnalyzer::setBranches(TTree* tree) {
     tree->Branch("jetConsituentsEta", &jetConsituentsEta_);
     tree->Branch("jetConstituentsPhi", &jetConstituentsPhi_);
     tree->Branch("jetConstituentsPdgId", &jetConstituentsPdgId_);
+    // event bookkeeping (plain scalars)
+    tree->Branch("eventIndex", &eventIndex_, "eventIndex/L");
+    tree->Branch("jetIndex", &jetIndex_, "jetIndex/I");
 }
 
 void JetAnalyzer::setFilter(const std::string& filter) {
@@ -188,12 +191,25 @@ void JetAnalyzer::begin() {
     setBranches(tree_);
 }
 
-void JetAnalyzer::fill(const std::vector<fastjet::PseudoJet>& jets) {
+void JetAnalyzer::fill(const std::vector<fastjet::PseudoJet>& jets, long long eventIndex) {
     if (!tree_) throw std::logic_error("JetAnalyzer::fill called before begin()");
+    // Selected jets keep their clustering order in the tree; jetIndex is their pT rank
+    // among the selected jets of this event (0 = hardest).
+    std::vector<size_t> selected;
+    for (size_t i = 0; i < jets.size(); ++i)
+        if (passesFilter(jets[i])) selected.push_back(i);
+    std::vector<size_t> byPt(selected);
+    std::stable_sort(byPt.begin(), byPt.end(),
+                     [&](size_t a, size_t b) { return jets[a].pt() > jets[b].pt(); });
+    std::vector<int> rank(jets.size(), -1);
+    for (size_t r = 0; r < byPt.size(); ++r) rank[byPt[r]] = static_cast<int>(r);
+
     // jet.constituents() needs the jets' ClusterSequence to be alive during this call
-    for (const auto& jet : jets) {
-        if (!passesFilter(jet)) continue;
-        
+    for (size_t i : selected) {
+        const auto& jet = jets[i];
+        eventIndex_ = eventIndex;
+        jetIndex_ = rank[i];
+
         jetPt_.push_back(jet.pt());
         jetEta_.push_back(jet.eta());
         jetPhi_.push_back(jet.phi_std());
@@ -223,6 +239,6 @@ void JetAnalyzer::finish() {
 
 void JetAnalyzer::analyze(const JetCollection& jetCollection) {
     begin();
-    for (const auto& jets : jetCollection) fill(jets);
+    for (size_t i = 0; i < jetCollection.size(); ++i) fill(jetCollection[i], static_cast<long long>(i));
     finish();
 }

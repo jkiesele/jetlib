@@ -57,7 +57,7 @@ int run(const ArgumentParser& argParser) {
     jetAnalyzer.begin();
     eventGen.generateEvents(nEvents, [&](const std::vector<fastjet::PseudoJet>& jets, size_t iEvent) {
         if (debug) printEventInfo(jets, iEvent);
-        jetAnalyzer.fill(jets);
+        jetAnalyzer.fill(jets, static_cast<long long>(iEvent));
     });
     jetAnalyzer.finish();
     std::cout << "Removed before clustering: " << eventGen.getNRemovedInvisible() << " invisible particles, "

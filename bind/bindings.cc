@@ -65,7 +65,7 @@ PYBIND11_MODULE(jetlibpy, m) {
         .def(pybind11::init<std::string>(), pybind11::arg("outputFilename") = "jet_analysis.root")
         .def("analyze", &JetAnalyzer::analyze)
         .def("begin", &JetAnalyzer::begin)
-        .def("fill", &JetAnalyzer::fill, pybind11::arg("jets"))
+        .def("fill", &JetAnalyzer::fill, pybind11::arg("jets"), pybind11::arg("eventIndex"))
         .def("finish", &JetAnalyzer::finish)
         .def("setFilter", &JetAnalyzer::setFilter)
         .def("setSelection", &JetAnalyzer::setSelection)

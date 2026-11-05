@@ -30,7 +30,7 @@ class JetAnalyzer {
     // Streaming interface: begin() creates the tree, fill() writes the selected jets of
     // one event, finish() writes the file. analyze() does all three for a full collection.
     void begin();
-    void fill(const std::vector<fastjet::PseudoJet>& jets);
+    void fill(const std::vector<fastjet::PseudoJet>& jets, long long eventIndex);
     void finish();
     void analyze(const JetCollection& jetCollection);
     void setFilter(const std::string& filter);
@@ -54,6 +54,8 @@ class JetAnalyzer {
     std::vector<double> jetConsituentsEta_;
     std::vector<double> jetConstituentsPhi_;
     std::vector<int> jetConstituentsPdgId_;
+    Long64_t eventIndex_ = 0;   // index of the accepted event in this run
+    Int_t jetIndex_ = 0;        // pT rank of the jet among the selected jets of its event
 
     void setBranches(TTree* tree);
 

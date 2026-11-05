@@ -46,6 +46,15 @@ Example: both forward regions, 1.7 < |η| < 2.6, pT > 30 GeV:
 
 In Python the same selection is a `jetlibpy.JetSelection` passed to `JetAnalyzer.setSelection`.
 
+## Output
+
+One jet per entry of the `JetTree` tree. Per-jet kinematics: `jetPt`, `jetEta`, `jetPhi`, `jetEnergy`, `jetNConstituents`. Constituents: `jetConstituentsPx/Py/Pz/Pt/E/Phi/PdgId` and `jetConsituentsEta` (sic). Bookkeeping:
+
+- `eventIndex`: index of the generated event in this run (0-based). Jets with the same `eventIndex` come from the same Pythia event.
+- `jetIndex`: pT rank of the jet among the selected jets of its event (0 = hardest).
+
+Jets are written event by event, so consecutive entries are correlated. Shuffle them, or sample by `eventIndex`, if that matters.
+
 ## Random seed
 
 `--seed <int>` sets the Pythia seed and always overrides `Random:seed` in the config file. The default is `0`, which Pythia turns into a time-based seed, so two runs differ. Allowed values are 0 to 900000000 (Pythia's maximum). Negative values are rejected; Pythia would map them to its fixed default seed. The seed is printed at startup.
