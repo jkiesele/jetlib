@@ -24,6 +24,10 @@ PYBIND11_MODULE(jetlibpy, m) {
     // Bind fastjet::PseudoJet
     pybind11::class_<fastjet::PseudoJet>(m, "PseudoJet")
         .def(pybind11::init<>())
+        .def(pybind11::init<double, double, double, double>(),
+             pybind11::arg("px"), pybind11::arg("py"), pybind11::arg("pz"), pybind11::arg("E"))
+        .def("user_index", &fastjet::PseudoJet::user_index, "PDG ID for particles/constituents from jetlib")
+        .def("set_user_index", &fastjet::PseudoJet::set_user_index, pybind11::arg("index"))
         .def("pt", &fastjet::PseudoJet::pt)
         .def("eta", &fastjet::PseudoJet::eta)
         .def("phi", &fastjet::PseudoJet::phi)
@@ -71,9 +75,11 @@ PYBIND11_MODULE(jetlibpy, m) {
     pybind11::class_<JetAnalysis>(m, "JetAnalysis")
         .def(pybind11::init<>())
         .def("clusterJets", &JetAnalysis::clusterJets, pybind11::arg("R"), pybind11::arg("ptMin") = 20.0)
-        .def("getJets", &JetAnalysis::getJets)
-        .def("convertPythiaToPseudoJets", &JetAnalysis::convertPythiaToPseudoJets,
-             pybind11::arg("event"), pybind11::arg("keepPromptLeptons") = false)
+        .def("getJets", &JetAnalysis::getJets, pybind11::arg("ptMin"))
+        // convertPythiaToPseudoJets is not bound: Pythia8::Event is not available in Python.
+        .def("setParticles", &JetAnalysis::setParticles, pybind11::arg("particles"),
+             "Particles (PseudoJet(px, py, pz, E)) to cluster; replaces previous particles and jets.")
+        .def("getParticles", &JetAnalysis::getParticles)
         .def("clear", &JetAnalysis::clear);
 
     pybind11::class_<JetAnalyzer>(m, "JetAnalyzer")

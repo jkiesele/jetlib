@@ -30,7 +30,16 @@ class JetAnalysis {
     // Invisible particles (neutrinos, BSM invisibles) are always dropped.
     // Prompt leptons (e/mu without a hadron among their ancestors, e.g. from W, Z
     // or tau decays) are dropped unless keepPromptLeptons is true.
+    // Replaces any particles and jets from a previous call. The counters below refer to
+    // the last call.
     void convertPythiaToPseudoJets(const Pythia8::Event& event, bool keepPromptLeptons = false);
+
+    // Set the particles to cluster directly (e.g. from Python); replaces previous particles and jets.
+    void setParticles(const std::vector<fastjet::PseudoJet>& particles) {
+      clear();
+      particles_ = particles;
+    }
+    const std::vector<fastjet::PseudoJet>& getParticles() const { return particles_; }
 
     // True for a final-state e/mu with no hadron (from hadronization or decays) in its
     // mother1 chain. Beam particles are not counted as hadron ancestors.

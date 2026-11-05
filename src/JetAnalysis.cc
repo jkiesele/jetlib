@@ -17,6 +17,10 @@ bool JetAnalysis::isPromptLepton(const Pythia8::Event& event, int i) {
 }
 
 void JetAnalysis::convertPythiaToPseudoJets(const Pythia8::Event& event, bool keepPromptLeptons) {
+    // one event per call: start from an empty particle list and fresh counters
+    clear();
+    nRemovedInvisible_ = 0;
+    nRemovedPromptLeptons_ = 0;
     for (int i = 0; i < event.size(); ++i) {
       if (!event[i].isFinal()) continue;
       if (!event[i].isVisible()) { ++nRemovedInvisible_; continue; }
