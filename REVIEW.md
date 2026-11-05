@@ -278,7 +278,21 @@ Build: the container build is clean, with no warnings, for both `jetlib` and `je
   - `--help` exits 0.
 - In Python, `JetAnalyzer("/nonexistent/x.root")` raises `RuntimeError`. With two analyzers, the tree lands in the first analyzer's file (115 jets), as intended.
 
+## Batch 2: streaming, event index, provenance
+
+| Commit | Findings | Change |
+|---|---|---|
+| `e108995` | 3.1 | Events are streamed. `generateEvents()` takes a per-event callback, and the CLI selects and writes each event's jets while its `ClusterSequence` is alive, then frees it. ROOT's basket flushing then keeps memory bounded. `JetAnalyzer` gets `begin()`/`fill()`/`finish()`, and `analyze()` is kept. Without a callback (Python), all events are still kept for `getJetCollection()`. |
+| `f820528` | 1.8 | New scalar branches: `eventIndex` (Long64; the index of the accepted event in the run) and `jetIndex` (Int; the pT rank among the selected jets of the event, 0 = hardest). The fill order is unchanged. |
+| `bd688fd` | 5.3 | Provenance is stored as `TNamed` objects in `jetlib/`: the build's git version (regenerated every build), command line, config name and full text, seed, Pythia and FastJet versions, jet algorithm, clustering threshold, selection, particle treatment, and counters (events requested, accepted and failed; removed invisibles and prompt leptons; jets written). |
+
+**Verification:**
+- *Memory* (ttbar, `--seed 777`): peak RSS is **202 MB at 1000 events and 205 MB at 4000**, against 472 MB and 1187 MB before. Memory no longer grows with the number of events. With each binary run on its own, wall time is unchanged within noise (34 s against 36 s for 2000 events).
+- `JetTree` is identical to the reference build for 1000 and 4000 events, and after each commit of the batch. Apart from the two new branches, nothing changes.
+- Python: `generateEvents` + `getJetCollection` + `analyze`, and the streaming `begin`/`fill`/`finish`, both write the same 115 jets.
+- `checks/check_output.py` now also checks the index branches (pT rank 0…n−1 per event, `eventIndex` sorted) and the provenance (seed, counters, config, version). **Result: 29/29 checks passed.**
+- Limitation: for `--seed 0`, the effective time-based seed cannot be recorded, because Pythia 8.306 keeps it private (`Rndm::seedSave`, with no getter).
+
 **Still open:**
-- Batch 2: 3.1 memory (streaming), 1.8 event index, 5.3 provenance.
 - Batch 3, which breaks the format and needs a decision: 5.1, 5.2.
-- Also open: 2.3 filter parser, 4.1–4.3 Python bindings, 6.4 default config path, 6.6–6.10 build, docs and design, and 7.1 (time seed; a warning is printed).
+- Also open: 2.3 filter parser, 4.1–4.3 Python bindings, 6.4 default config path, 6.6–6.10 build, docs and design, and 7.1 (time seed; a warning is printed, and the effective seed is not recorded).

@@ -77,11 +77,15 @@ def read(path):
     return uproot.open(path)["JetTree"].arrays(library="np")
 
 
-def same_contents(p1, p2):
+def same_contents(p1, p2, subset_of=None):
+    """True if both trees have identical contents. With subset_of=p2, only the branches
+    of p2 are compared and p1 may have additional ones (for older reference builds)."""
     a, b = read(p1), read(p2)
-    if sorted(a) != sorted(b):
+    if subset_of is None and sorted(a) != sorted(b):
         return False
-    for k in a:
+    if subset_of is not None and not set(b) <= set(a):
+        return False
+    for k in b:
         if len(a[k]) != len(b[k]):
             return False
         if not all(np.array_equal(x, y) for x, y in zip(a[k], b[k])):
@@ -193,8 +197,28 @@ def main():
           f"{len(pt)} jets, pt min {pt.min():.2f}, eta in [{eta.min():.3f}, {eta.max():.3f}], eta>0: {npos}, eta<0: {nneg}")
 
     if args.ref_bin:
-        check("final == reference build (default args, same seed)", same_contents(p["c_default"], p["ref_default"]),
-              f"reference {args.ref_bin}")
+        check("final == reference build (default args, same seed, reference branches)",
+              same_contents(p["c_default"], p["ref_default"], subset_of=True), f"reference {args.ref_bin}")
+
+    # bookkeeping branches and provenance (review 1.8, 5.3)
+    t = uproot.open(p["c_default"])
+    a = read(p["c_default"])
+    ev, ji = a["eventIndex"], a["jetIndex"]
+    pt = np.array([x[0] for x in a["jetPt"]])
+    ranks_ok = True
+    for e in np.unique(ev):
+        m = ev == e
+        r = ji[m]
+        ranks_ok &= sorted(r) == list(range(m.sum())) and bool(np.all(np.diff(pt[m][np.argsort(r)]) <= 0))
+    check("eventIndex/jetIndex consistent", bool(np.all(np.diff(ev) >= 0)) and ev.max() < R.n and ranks_ok,
+          f"{len(np.unique(ev))} events with jets, eventIndex max {ev.max()}, jetIndex = pT rank 0..n-1 per event")
+    meta = {k: t["jetlib/" + k].member("fTitle") for k in t["jetlib"].keys(cycle=False)}
+    prov_ok = (meta.get("seed") == str(SEED) and meta.get("n_jets_written") == str(len(pt))
+               and meta.get("n_events_accepted") == str(R.n) and "Top:gg2ttbar" in meta.get("config", "")
+               and meta.get("jetlib_version", "unknown") != "unknown")
+    check("provenance stored", prov_ok,
+          f"version {meta.get('jetlib_version')}, seed {meta.get('seed')}, n_jets_written {meta.get('n_jets_written')}, "
+          f"{len(meta)} entries")
 
     # 5. particle content (change C)
     k = read(p["c_keep"])
