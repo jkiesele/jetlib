@@ -80,6 +80,16 @@ def same(a, b):
     return all(bool(ak.all(ak.ravel(a[f] == b[f]))) for f in a.fields if f in b.fields)
 
 
+def peak_mem(d):
+    """fact tile text: master -> branch max RSS at the largest timed event count"""
+    if "timing" not in d:
+        return "1187 → 205 MB"          # measured once during the streaming change (batch 2)
+    summ = d["timing"]["summary"]
+    n = max(s["n"] for s in summ)
+    get = lambda v: next(s["maxrss_mb"] for s in summ if s["variant"] == v and s["n"] == n)
+    return f"{get('master'):.0f} → {get('branch'):.0f} MB"
+
+
 def git(*args):
     return subprocess.run(["git", "-C", REPO, *args], capture_output=True, text=True, check=True).stdout
 
@@ -147,10 +157,15 @@ def main():
     p.add_argument("--base", default="master", help="git ref the branch is compared with (commit list, diffstat)")
     p.add_argument("--cli-checks", default="see check_output.py", help="result of check_output.py, e.g. 31/31")
     p.add_argument("--py-checks", default="see check_bindings.py", help="result of check_bindings.py, e.g. 9/9")
+    p.add_argument("--timing", help="JSON written by checks/timing.py: adds runtime and memory plots")
     p.add_argument("--json", help="also write the computed numbers to this JSON file")
     args = p.parse_args()
 
     d = compute(args.workdir)
+    if args.timing:
+        with open(args.timing) as f:
+            t = json.load(f)
+        d["timing"] = {k: t[k] for k in ("summary", "host", "jobs", "variants")}
     commits = [l.split("\t", 1) for l in git("log", "--reverse", "--format=%h\t%s", f"{args.base}..HEAD").splitlines()]
     shortstat = git("diff", "--shortstat", f"{args.base}..HEAD").split(",")
     nfiles = shortstat[0].split()[0] if shortstat[0].strip() else "0"
@@ -166,6 +181,7 @@ def main():
         "__NMASTER__": f"{s['n_master']:,}".replace(",", " "), "__NFINAL__": f"{s['n_final']:,}".replace(",", " "),
         "__CLICHECKS__": args.cli_checks, "__PYCHECKS__": args.py_checks,
         "__SEED__": str(s["seed"]), "__NEVENTS__": str(s["n_events"]),
+        "__PEAKMEM__": peak_mem(d),
     }
     page = open(args.template, encoding="utf-8").read()
     for k, v in fill.items():

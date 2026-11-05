@@ -106,7 +106,7 @@ summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outli
   <div class="fact"><div class="k">Jets written, master default</div><div class="v">__NMASTER__</div><div class="d">η > 1.7, pT > 30 GeV, neutrinos clustered</div></div>
   <div class="fact"><div class="k">Jets written, branch default</div><div class="v">__NFINAL__</div><div class="d">−3 < η < 3, pT > 30 GeV, visible particles only</div></div>
   <div class="fact"><div class="k">Master jets with > 90% of E in neutrinos</div><div class="v" id="f-nu">–</div><div class="d">0 on the branch</div></div>
-  <div class="fact"><div class="k">Peak memory, 4000 events</div><div class="v">1187 → 205 MB</div><div class="d">streaming instead of storing all events</div></div>
+  <div class="fact"><div class="k">Peak memory, 4000 events</div><div class="v">__PEAKMEM__</div><div class="d">streaming instead of storing all events</div></div>
 </div>
 </section>
 
@@ -169,12 +169,23 @@ summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outli
     <figcaption><b>Expect:</b> tt̄ gives a broad distribution around 4 jets in |η| < 3, about six partons minus acceptance and pT losses. Before this branch, jets could not be grouped by event. <span class="verdict" id="v-jpe"></span></figcaption></figure>
   <figure id="fig-phi"><div class="ft">Jet φ, branch default</div><div class="legend"></div><div class="plot"></div>
     <figcaption><b>Expect:</b> flat within statistics over [−π, π). This is the convention of the tree, and now also of Python and the filter. <span class="verdict" id="v-phi"></span></figcaption></figure>
-  <figure id="fig-mem"><div class="ft">Peak memory (max RSS) of a run</div><div class="legend"></div><div class="plot"></div>
-    <figcaption><b>Expect:</b> before streaming, memory grows with the number of events. After it, memory is flat. Measured once during the streaming change (Phase 3 batch 2), ttbar with the default selection; these numbers are fixed in the template, not recomputed. <span class="verdict">Memory no longer depends on the number of events.</span></figcaption></figure>
   <figure id="fig-seed"><div class="ft">Reproducibility</div>
     <div class="tbl-wrap"><table id="seedtbl"><thead><tr><th>Runs compared</th><th>Expected</th><th>Result</th></tr></thead><tbody></tbody></table></div>
     <figcaption>Compares the tree contents, not file bytes (ROOT files carry timestamps). Closure: the vector sum of each jet's stored constituents reproduces the jet's pT and E to within <span class="mono" id="closure"></span>.</figcaption></figure>
 </div>
+</section>
+
+<section id="runtime">
+<h2>Runtime and memory</h2>
+<div class="prose"><p>Master and the branch build run the same events: the same seed per repetition, tt̄, with each run single-threaded. <code>checks/timing.py</code> measures the jetlib process itself inside the container. <b>branch, master selection</b> runs the branch with <code>--eta-min 1.7 --eta-max 100</code>, which approximates master's selection, so the effect of writing more jets can be told apart from everything else. Values are medians over the repetitions. <span id="t-host"></span></p></div>
+<div class="figs">
+  <figure id="fig-cpu"><div class="ft">CPU time per run (user + sys)</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> no change. Pythia's event generation dominates, and the added steps (the invisible-particle and prompt-lepton checks, writing per event) are cheap. <span class="verdict" id="v-cpu"></span></figcaption></figure>
+  <figure id="fig-mem"><div class="ft">Peak memory (max RSS) of a run</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> master keeps every event and its clustering until the end, so its memory grows with the number of events. The branch streams, so its memory stays flat. <span class="verdict" id="v-mem"></span></figcaption></figure>
+</div>
+<div class="tbl-wrap"><table id="timetbl"><thead><tr><th>Variant</th><th>Events</th><th class="num">Wall [s]</th><th class="num">CPU [s]</th><th class="num">CPU range [s]</th><th class="num">CPU / event [ms]</th><th class="num">Max RSS [MB]</th><th class="num">Jets written</th></tr></thead><tbody></tbody></table></div>
+<p class="prose" style="color:var(--fg2);font-size:.9rem">Wall time depends on the load of the shared machine. In a first round with 12 runs in parallel, the branch was up to 6% slower in wall time, but not in CPU time. The gap disappeared with 6 runs in parallel and in a separate test writing to local disk versus /ceph, so it was load, not the code.</p>
 </section>
 
 <section>
@@ -283,7 +294,7 @@ function hist(id, series, o) {
 // Horizontal grouped bars (categories x series)
 function hbars(id, cats, series, o) {
   const fig = document.getElementById(id); legend(fig, series);
-  const W = 520, rowH = 30, m = { l: 64, r: 50, t: 4, b: 30 }, H = m.t + m.b + cats.length * rowH;
+  const W = 520, rowH = o.rowH || 30, m = { l: 64, r: 50, t: 4, b: 30 }, H = m.t + m.b + cats.length * rowH;
   const vmax = o.max, X = v => m.l + v / vmax * (W - m.l - m.r);
   const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': fig.querySelector('.ft').textContent });
   const ax = el('g', { class: 'axis' }, svg);
@@ -349,8 +360,30 @@ hist('fig-phi', [{ name: 'branch default', color: '--s1', h: D.phi.final }], { x
 const pc = D.phi.final.counts, pm = sum(pc) / pc.length, chi2 = sum(pc.map(c => (c - pm) ** 2 / pm));
 document.getElementById('v-phi').textContent = `χ² for flat = ${chi2.toFixed(1)} for ${pc.length - 1} degrees of freedom.`;
 
-hbars('fig-mem', ['1000 events', '4000 events'], [{ name: 'master (all events kept)', color: '--s2', vals: [472, 1187] }, { name: 'branch (streaming)', color: '--s1', vals: [202, 205] }],
-  { max: 1250, tfmt: v => v + ' MB', vfmt: v => v + ' MB', lab: i => ['472 → 202 MB', '1187 → 205 MB'][i] });
+if (D.timing) {
+  const T = D.timing, sizes = [...new Set(T.summary.map(s => s.n))].sort((a, b) => a - b);
+  const VN = { master: ['master', '--s2'], branch: ['branch', '--s1'], branch_master_sel: ['branch, master selection', '--s3'] };
+  const vars = Object.keys(VN).filter(v => T.summary.some(s => s.variant === v));
+  const get = (v, n) => T.summary.find(s => s.variant === v && s.n === n);
+  const cats = sizes.map(n => fmt(n) + ' events');
+  const ser = key => vars.map(v => ({ name: VN[v][0], color: VN[v][1], vals: sizes.map(n => (get(v, n) || {})[key] || 0) }));
+  const top = key => Math.max(...T.summary.map(s => s[key]));
+  const step = v => v > 600 ? 250 : v > 60 ? 20 : 10;
+  const rowH = 14 + vars.length * 11;
+  hbars('fig-cpu', cats, ser('cpu'), { rowH, max: Math.ceil(top('cpu') * 1.15 / step(top('cpu'))) * step(top('cpu')), tfmt: v => v + ' s', vfmt: v => v.toFixed(1) + ' s',
+    lab: i => `${(1000 * get('master', sizes[i]).cpu / sizes[i]).toFixed(1)} → ${(1000 * get('branch', sizes[i]).cpu / sizes[i]).toFixed(1)} ms/event` });
+  hbars('fig-mem', cats, ser('maxrss_mb'), { rowH, max: Math.ceil(top('maxrss_mb') * 1.15 / 250) * 250, tfmt: v => v + ' MB', vfmt: v => v.toFixed(0) + ' MB',
+    lab: i => `${get('master', sizes[i]).maxrss_mb.toFixed(0)} → ${get('branch', sizes[i]).maxrss_mb.toFixed(0)} MB` });
+  const nmax = sizes[sizes.length - 1], cm = get('master', nmax), cb = get('branch', nmax);
+  const dc = 100 * (cb.cpu / cm.cpu - 1);
+  document.getElementById('v-cpu').textContent = `At ${fmt(nmax)} events: ${cm.cpu.toFixed(1)} s (master) vs ${cb.cpu.toFixed(1)} s (branch), ${dc >= 0 ? '+' : ''}${dc.toFixed(1)}%, while the branch writes ${(cb.n_jets / cm.n_jets).toFixed(1)}× as many jets.`;
+  const m0 = get('master', sizes[0]), b0 = get('branch', sizes[0]);
+  document.getElementById('v-mem').textContent = `Master grows from ${m0.maxrss_mb.toFixed(0)} to ${cm.maxrss_mb.toFixed(0)} MB between ${fmt(sizes[0])} and ${fmt(nmax)} events; the branch stays between ${Math.min(...sizes.map(n => get('branch', n).maxrss_mb)).toFixed(0)} and ${Math.max(...sizes.map(n => get('branch', n).maxrss_mb)).toFixed(0)} MB.`;
+  document.getElementById('t-host').textContent = `Machine: ${T.host.cpu}, shared, ${T.jobs} runs in parallel.`;
+  document.querySelector('#timetbl tbody').innerHTML = sizes.flatMap(n => vars.map(v => { const s = get(v, n); return `<tr><td>${VN[v][0]}</td><td class="num">${fmt(n)}</td><td class="num">${s.wall.toFixed(1)}</td><td class="num">${s.cpu.toFixed(1)}</td><td class="num">${s.cpu_min.toFixed(1)}–${s.cpu_max.toFixed(1)}</td><td class="num">${(1000 * s.cpu / n).toFixed(1)}</td><td class="num">${s.maxrss_mb.toFixed(0)}</td><td class="num">${fmt(s.n_jets)}</td></tr>`; })).join('');
+} else {
+  document.getElementById('runtime').hidden = true;
+}
 
 const ok = b => `<span class="pill ${b ? 'pass' : 'fail'}">${b ? 'as expected' : 'unexpected'}</span>`;
 document.querySelector('#seedtbl tbody').innerHTML = [
