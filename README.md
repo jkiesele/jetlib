@@ -2,16 +2,34 @@
 
 Generate a sample of particles inside a jet. Jetlib generates events through the Pythia8 event generator and clusters particles with FastJet, producing a ROOT file containing information about jets and their constituents.
 
-To run jetlib, clone the repo and follow these steps
+Jetlib uses Pythia 8.306, FastJet 3.5.0 and ROOT. Jets are clustered with anti-kT, R = 0.4.
+
+## Building
+
+The DICE container provides all dependencies (FastJet in `/opt/fastjet-3.5.0`, the default).
 
 ```bash
-cd jetlib
+git clone <repo> jetlib && cd jetlib
+git submodule update --init      # pybind11, needed for the Python module
 mkdir build && cd build
 cmake ..
-make -jN
-./jetlib -f output.root --nEvents 5
+make -j8
 ```
-Jetlib uses `fastjet-3.5.0` and `pythia8.306`
+
+CMake options:
+
+| Option | Meaning | Default |
+|---|---|---|
+| `-DFASTJET_DIR=<prefix>` | FastJet installation (contains `bin/fastjet-config`); otherwise `fastjet-config` is taken from `PATH` | `/opt/fastjet-3.5.0` |
+| `-DJETLIB_PYTHON=OFF` | build only the `jetlib` executable, without Python/pybind11 | `ON` |
+
+## Running
+
+```bash
+./jetlib -c ../config/ttbar.cfg -f output.root -n 1000
+```
+
+`-c` is the Pythia config file. Every non-empty line that does not start with `#` is passed to Pythia, and a line Pythia does not accept stops the run. Without `-c`, `config/ttbar.cfg` of the source tree jetlib was built from is used. The config file in use is printed at startup. The repository has `config/ttbar.cfg` (tt̄), `config/zprime.cfg` (300 GeV Z′ → u, d, s, c quarks) and `config/tau.cfg` (Z → ττ). `-n` is the number of events, `-f` the output file, `-d` prints every event. `./jetlib --help` lists all options.
 
 ## Particles that are clustered
 
@@ -21,6 +39,15 @@ Only visible final-state particles enter the jet clustering:
 - Prompt leptons are removed by default. These are final-state electrons and muons without a hadron among their ancestors, for example from W, Z or τ decays. Leptons from hadron decays (e.g. semileptonic b decays) stay in the jets. Use `--keep-prompt-leptons` to cluster prompt leptons too.
 
 The numbers of removed particles are printed at the end of the run. In Python: `EventGenerator.setKeepPromptLeptons(True)`.
+
+## Event content (underlying event, pileup)
+
+The events are Pythia's defaults apart from the config file: initial- and final-state radiation, multiparton interactions (MPI) and hadronization are on. Jets therefore contain underlying-event particles. There is no pileup. To change this, add Pythia settings to the config file, for example:
+
+```
+PartonLevel:MPI = off      # no multiparton interactions (no underlying event)
+PartonLevel:ISR = off      # no initial-state radiation
+```
 
 ## Jet selection
 
@@ -70,3 +97,30 @@ For planned production you can still give every job its own seed explicitly:
 ```
 
 In Python: `EventGenerator.setSeed(seed)` before `initialize()`; `getSeed()` returns the seed actually used.
+
+## Python module
+
+`make` also builds `jetlibpy` in `build/` (unless `-DJETLIB_PYTHON=OFF`). Run it in the same environment (container) it was built in:
+
+```python
+import sys; sys.path.insert(0, "build")
+import jetlibpy
+
+gen = jetlibpy.EventGenerator("config/ttbar.cfg")
+gen.setSeed(17)                  # before initialize(); 0 = jetlib draws a seed
+gen.initialize()
+gen.generateEvents(100)          # keeps all jets in memory
+for event in gen.getJetCollection():
+    for jet in event:
+        print(jet.pt(), jet.eta(), jet.phi(), len(jet.constituents()))
+
+ana = jetlibpy.JetAnalyzer("out.root")
+sel = jetlibpy.JetSelection(); sel.ptMin = 30; sel.etaMin = -3; sel.etaMax = 3
+ana.setSelection(sel)
+ana.analyze(gen.getJetCollection())   # same tree as the CLI writes (no provenance unless setMetadata is used)
+```
+
+- `phi()` is in [−π, π), as in the output tree; `phi_02pi()` gives [0, 2π).
+- Jets keep their FastJet `ClusterSequence` alive, so `constituents()` works as long as the jet exists. FastJet errors arrive as `RuntimeError`.
+- `JetAnalyzer.setFilter(expr)` adds a string filter on top of the selection, e.g. `"pt > 30 && (abs(eta) < 2.5 || e > 500)"`. Variables: `pt`, `eta`, `phi`, `e`/`energy`, optionally in `abs()`; operators `> < >= <= == !=`, `&&`, `||` and parentheses. An invalid filter raises `ValueError`.
+- `JetAnalysis` clusters your own particles: `setParticles([jetlibpy.PseudoJet(px, py, pz, E), ...])`, then `clusterJets(R, ptMin)` and `getJets(ptMin)`.
