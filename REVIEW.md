@@ -309,6 +309,33 @@ The user chose the branch rename only. The scalar branches (5.2) stay as they ar
 - Explicit seeds: output identical to the reference build (the renamed branch was compared under its new name).
 - Python: with no `setSeed` and the config at seed 0, a seed is drawn and `getSeed()` returns it. `setSeed(42)` gives 42.
 
-**Still open:**
-- Not done, by decision: 5.2 (scalar branches).
-- Also open: 2.3 filter parser, 4.1–4.3 Python bindings, 6.4 default config path, and 6.6–6.10 build, docs and design.
+**Still open after batch 3:** 2.3, 4.1–4.3, 6.4 and 6.6–6.10 (done in batch 4). 5.2 is not done, by decision.
+
+## Batch 4: filter parser, Python bindings, build and documentation
+
+The jet output is unchanged in this batch.
+
+| Commit | Findings | Change |
+|---|---|---|
+| `6e925ce` | 2.3 | The string filter is parsed once, in `setFilter`, by a recursive-descent parser. An unknown variable or operator, an empty term, trailing characters, unbalanced parentheses or a bad number throw `std::invalid_argument` (`ValueError` in Python). Before, such filters let all jets pass, ignored the rest, or aborted. The variable is resolved once, not per jet. |
+| `dea2140` | 4.1 | `clusterJets` hands the `ClusterSequence` to its jets (FastJet `delete_self_when_unused`), so `constituents()` works as long as any copy of a jet exists, also in Python after the `EventGenerator` is deleted. The per-event `JetAnalysis` objects no longer have to be kept. `fastjet::Error` is translated to `RuntimeError` with FastJet's message. |
+| `653c0d6` | 4.2 | `convertPythiaToPseudoJets` starts from an empty particle list and fresh counters. Its binding is removed (`Pythia8::Event` is not bound). `setParticles`/`getParticles`, `PseudoJet(px, py, pz, E)` and `user_index()` are bound, so `JetAnalysis` can cluster particles given from Python. |
+| `3b5e1a3` | 4.3 | `phi` in [−π, π) everywhere: Python `PseudoJet.phi()`, the filter variable `phi` and the `--debug` print. This changes the meaning of `phi()` in Python; `phi_02pi()` gives the old convention. |
+| `c78489d` | 6.4 | The default config is `config/ttbar.cfg` of the source tree (`JETLIB_SOURCE_DIR`, set by CMake), not `../config/ttbar.cfg` relative to the working directory. `--help` shows the path, and the config in use is always printed. |
+| `88befc6` | 6.6 | CMake: `FASTJET_DIR` cache variable (default `/opt/fastjet-3.5.0`) or `PATH`, with a clear error otherwise; ROOT components `RIO Tree`; dead include lines and the Geant4 comment removed. |
+| `8cf400a` | 6.7 | CMake option `JETLIB_PYTHON` (default `ON`). `OFF` builds only the executable. With `ON` and no submodule, CMake names `git submodule update --init`. |
+| `6fc98b8` | 6.9 | `.venv/` in `.gitignore`. |
+| `aab5bfa` | 6.8, 6.10 | README: build steps and CMake options, `-c` and the shipped configs, event content (ISR/FSR, MPI and hadronization on, no pileup; how to switch MPI/ISR off in the config), and the Python module (example, φ convention, filter syntax, `JetAnalysis`). 6.10 is documented only: MPI is already configurable through the config file. |
+
+**Verification:**
+- `checks/check_output.py`: **31/31 checks passed**. New check: running without `-c` from a job directory uses the source tree's `config/ttbar.cfg`. The default output for a fixed seed is still identical to the reference build `ref_e3e6770`. After 4.1 and 4.2, separate runs (seed 7, 300 events) also gave identical trees and identical removal counters.
+- New `checks/check_bindings.py`, run in the container, then with `--verify` on the host: **6/6 and 3/3 passed**.
+  - Nine invalid filters are rejected.
+  - Three filters write exactly the jets a direct evaluation in Python selects.
+  - Constituents stay valid after `del EventGenerator`.
+  - FastJet errors arrive as `RuntimeError` with their message.
+  - A reused `JetAnalysis` does not accumulate particles.
+  - `phi()` is in [−π, π).
+- Builds: a fresh configure in an empty build directory works, and so does `-DJETLIB_PYTHON=OFF` (executable only). `-DFASTJET_DIR=/nonexistent` stops with the new message. The README's Python example runs, and a config with `PartonLevel:MPI = off` and `PartonLevel:ISR = off` runs.
+
+**Open:** none, apart from 5.2 (not done, by decision).

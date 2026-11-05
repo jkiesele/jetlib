@@ -273,6 +273,14 @@ def main():
     rc, log, _ = R.run(args.final_bin, ["--help"], n=1)
     check("--help exits 0", rc == 0 and "Usage" in log, f"exit {rc}")
 
+    # 8. default config without -c, run from the job directory (review 6.4)
+    path = os.path.join(R.workdir, "noconfig.root")
+    r = subprocess.run(R.wrap + [os.path.abspath(args.final_bin), "-n", "5", "--seed", "3", "-f", path],
+                       cwd=R.workdir, capture_output=True, text=True)
+    cfg = next((l for l in (r.stdout + r.stderr).splitlines() if l.startswith("Config file:")), "")
+    check("default config works outside build/", r.returncode == 0 and cfg.endswith("config/ttbar.cfg")
+          and read(path)["jetPt"].size > 0, f"exit {r.returncode}: {cfg}")
+
     nfail = sum(not ok for _, ok, _ in results)
     print(f"\n{len(results) - nfail}/{len(results)} checks passed")
     return 1 if nfail else 0
