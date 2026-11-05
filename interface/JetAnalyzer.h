@@ -37,6 +37,9 @@ class JetAnalyzer {
     // directory "jetlib" of the output file, together with n_jets_written.
     void setMetadata(const std::string& name, const std::string& value) { metadata_[name] = value; }
     void analyze(const JetCollection& jetCollection);
+    // Optional string filter, e.g. "pt > 30 && abs(eta) < 2.5" (variables pt, eta, phi,
+    // e/energy; abs(); operators > < >= <= == !=; && || and parentheses). It is parsed
+    // and validated here: an invalid filter throws std::invalid_argument. "" removes it.
     void setFilter(const std::string& filter);
     // Cut-based selection, applied in addition to an optional string filter.
     void setSelection(const JetSelection& selection) { selection.validate(); selection_ = selection; }
@@ -80,13 +83,8 @@ class JetAnalyzer {
       jetConstituentsPdgId_.clear();
     }
 
-    std::function<bool(const fastjet::PseudoJet&)> parseFilter(const std::string& filter);
-    std::function<bool(const fastjet::PseudoJet&)> parseOrExpression(const std::string& expr);
-    std::function<bool(const fastjet::PseudoJet&)> parseAndExpression(const std::string& expr);
-    std::function<bool(const fastjet::PseudoJet&)> parseCondition(const std::string& expr);
     bool passesFilter(const fastjet::PseudoJet& jet) const;
 
-    //std::vector<std::function<bool(const fastjet::PseudoJet&)>> filterConditions_;
     std::function<bool(const fastjet::PseudoJet&)> filterConditions_;
     JetSelection selection_;
 };

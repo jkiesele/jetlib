@@ -4,6 +4,8 @@
 #include <cmath>
 #include <iostream>
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 
 void JetAnalyzer::setBranches(TTree* tree) {
     tree->Branch("jetPt", &jetPt_);
@@ -24,157 +26,133 @@ void JetAnalyzer::setBranches(TTree* tree) {
     tree->Branch("jetIndex", &jetIndex_, "jetIndex/I");
 }
 
+namespace {
+// Recursive-descent parser for jet filters such as "pt > 30 && (abs(eta) < 2.5 || e >= 100)".
+//   or   := and ( "||" and )*
+//   and  := atom ( "&&" atom )*
+//   atom := "(" or ")" | cond
+//   cond := var op number      var := name | "abs(" name ")"
+//   name := pt | eta | phi | e | energy   op := > < >= <= == !=
+// Every error (unknown variable or operator, missing term, trailing characters,
+// unbalanced parentheses, bad number) throws std::invalid_argument when the filter is set.
+using Pred = std::function<bool(const fastjet::PseudoJet&)>;
+
+class FilterParser {
+  public:
+    explicit FilterParser(const std::string& s) : s_(s) {}
+    Pred parse() {
+        Pred p = parseOr();
+        skipSpace();
+        if (pos_ != s_.size()) fail("unexpected '" + s_.substr(pos_) + "'");
+        return p;
+    }
+
+  private:
+    const std::string& s_;
+    size_t pos_ = 0;
+
+    [[noreturn]] void fail(const std::string& what) const {
+        throw std::invalid_argument("invalid jet filter '" + s_ + "' at position " +
+                                    std::to_string(pos_) + ": " + what);
+    }
+    void skipSpace() { while (pos_ < s_.size() && std::isspace(static_cast<unsigned char>(s_[pos_]))) ++pos_; }
+    bool accept(const std::string& tok) {
+        skipSpace();
+        if (s_.compare(pos_, tok.size(), tok) == 0) { pos_ += tok.size(); return true; }
+        return false;
+    }
+    Pred parseOr() {
+        std::vector<Pred> terms{parseAnd()};
+        while (accept("||")) terms.push_back(parseAnd());
+        if (terms.size() == 1) return terms[0];
+        return [terms](const fastjet::PseudoJet& j) {
+            for (const auto& t : terms) if (t(j)) return true;
+            return false;
+        };
+    }
+    Pred parseAnd() {
+        std::vector<Pred> terms{parseAtom()};
+        while (accept("&&")) terms.push_back(parseAtom());
+        if (terms.size() == 1) return terms[0];
+        return [terms](const fastjet::PseudoJet& j) {
+            for (const auto& t : terms) if (!t(j)) return false;
+            return true;
+        };
+    }
+    Pred parseAtom() {
+        skipSpace();
+        if (pos_ >= s_.size()) fail("expected a condition, found the end of the filter");
+        if (accept("(")) {
+            Pred p = parseOr();
+            if (!accept(")")) fail("expected ')'");
+            return p;
+        }
+        return parseCondition();
+    }
+    std::string parseName() {
+        skipSpace();
+        const size_t start = pos_;
+        while (pos_ < s_.size() && (std::isalnum(static_cast<unsigned char>(s_[pos_])) || s_[pos_] == '_')) ++pos_;
+        if (pos_ == start) fail("expected a variable name");
+        return s_.substr(start, pos_ - start);
+    }
+    Pred parseCondition() {
+        std::string name = parseName();
+        bool useAbs = false;
+        if (name == "abs") {
+            if (!accept("(")) fail("expected '(' after abs");
+            name = parseName();
+            if (!accept(")")) fail("expected ')' after abs(" + name);
+            useAbs = true;
+        }
+        double (*var)(const fastjet::PseudoJet&) = nullptr;
+        if (name == "pt") var = [](const fastjet::PseudoJet& j) { return j.pt(); };
+        else if (name == "eta") var = [](const fastjet::PseudoJet& j) { return j.eta(); };
+        else if (name == "phi") var = [](const fastjet::PseudoJet& j) { return j.phi(); };
+        else if (name == "e" || name == "energy") var = [](const fastjet::PseudoJet& j) { return j.e(); };
+        else fail("unknown variable '" + name + "' (known: pt, eta, phi, e, energy)");
+
+        enum class Op { GT, LT, GE, LE, EQ, NE } op;
+        if (accept(">=")) op = Op::GE;
+        else if (accept("<=")) op = Op::LE;
+        else if (accept("==")) op = Op::EQ;
+        else if (accept("!=")) op = Op::NE;
+        else if (accept(">")) op = Op::GT;
+        else if (accept("<")) op = Op::LT;
+        else fail("expected one of > < >= <= == != after '" + name + "'");
+
+        skipSpace();
+        const char* begin = s_.c_str() + pos_;
+        char* end = nullptr;
+        const double value = std::strtod(begin, &end);
+        if (end == begin || !std::isfinite(value)) fail("expected a number");
+        pos_ += static_cast<size_t>(end - begin);
+
+        return [var, useAbs, op, value](const fastjet::PseudoJet& j) {
+            double x = var(j);
+            if (useAbs) x = std::abs(x);
+            switch (op) {
+                case Op::GT: return x > value;
+                case Op::LT: return x < value;
+                case Op::GE: return x >= value;
+                case Op::LE: return x <= value;
+                case Op::EQ: return std::abs(x - value) < 1e-6;
+                case Op::NE: return std::abs(x - value) >= 1e-6;
+            }
+            return false;
+        };
+    }
+};
+}  // namespace
+
 void JetAnalyzer::setFilter(const std::string& filter) {
-    if (filter.empty()) {
+    // Parse completely before replacing the current filter: an invalid filter throws
+    // and leaves the analyzer unchanged. An empty (or blank) filter removes it.
+    if (filter.find_first_not_of(" \t\n") == std::string::npos) {
         filterConditions_ = nullptr;
         return;
     }
-    
-    // Remove all spaces
-    std::string cleanFilter = filter;
-    cleanFilter.erase(std::remove(cleanFilter.begin(), cleanFilter.end(), ' '), cleanFilter.end());
-    
-    filterConditions_ = parseFilter(cleanFilter);
-}
-
-std::function<bool(const fastjet::PseudoJet&)> JetAnalyzer::parseFilter(const std::string& filter) {
-    return parseOrExpression(filter);
-}
-
-std::function<bool(const fastjet::PseudoJet&)> JetAnalyzer::parseOrExpression(const std::string& expr) {
-    std::vector<std::function<bool(const fastjet::PseudoJet&)>> orConditions;
-    
-    // Split by || at the top level (not inside parentheses)
-    int parenDepth = 0;
-    size_t start = 0;
-    
-    for (size_t i = 0; i < expr.length(); ++i) {
-        if (expr[i] == '(') parenDepth++;
-        else if (expr[i] == ')') parenDepth--;
-        else if (parenDepth == 0 && i + 1 < expr.length() && expr.substr(i, 2) == "||") {
-            orConditions.push_back(parseAndExpression(expr.substr(start, i - start)));
-            start = i + 2;
-            i++; // Skip second |
-        }
-    }
-    orConditions.push_back(parseAndExpression(expr.substr(start)));
-    
-    if (orConditions.size() == 1) {
-        return orConditions[0];
-    }
-    
-    // Return OR of all conditions
-    return [orConditions](const fastjet::PseudoJet& jet) -> bool {
-        for (const auto& cond : orConditions) {
-            if (cond(jet)) return true;
-        }
-        return false;
-    };
-}
-
-std::function<bool(const fastjet::PseudoJet&)> JetAnalyzer::parseAndExpression(const std::string& expr) {
-    std::vector<std::function<bool(const fastjet::PseudoJet&)>> andConditions;
-    
-    // Split by && at the top level (not inside parentheses)
-    int parenDepth = 0;
-    size_t start = 0;
-    
-    for (size_t i = 0; i < expr.length(); ++i) {
-        if (expr[i] == '(') parenDepth++;
-        else if (expr[i] == ')') parenDepth--;
-        else if (parenDepth == 0 && i + 1 < expr.length() && expr.substr(i, 2) == "&&") {
-            andConditions.push_back(parseCondition(expr.substr(start, i - start)));
-            start = i + 2;
-            i++; // Skip second &
-        }
-    }
-    andConditions.push_back(parseCondition(expr.substr(start)));
-    
-    if (andConditions.size() == 1) {
-        return andConditions[0];
-    }
-    
-    // Return AND of all conditions
-    return [andConditions](const fastjet::PseudoJet& jet) -> bool {
-        for (const auto& cond : andConditions) {
-            if (!cond(jet)) return false;
-        }
-        return true;
-    };
-}
-
-std::function<bool(const fastjet::PseudoJet&)> JetAnalyzer::parseCondition(const std::string& expr) {
-    // Handle parentheses
-    if (expr.front() == '(' && expr.back() == ')') {
-        return parseOrExpression(expr.substr(1, expr.length() - 2));
-    }
-    
-    // Parse simple condition: var op value
-    std::string var, op;
-    double value;
-    bool useAbs = false;
-    
-    // Check for abs()
-    size_t varStart = 0;
-    size_t varEnd = expr.length();
-    
-    if (expr.find("abs(") == 0) {
-        useAbs = true;
-        varStart = 4;
-        size_t closeParen = expr.find(')');
-        if (closeParen == std::string::npos) {
-            throw std::runtime_error("Mismatched parentheses in abs()");
-        }
-        var = expr.substr(4, closeParen - 4);
-        varEnd = closeParen + 1;
-    } else {
-        // Find operator position
-        size_t opPos = expr.find_first_of("><=!");
-        if (opPos == std::string::npos) {
-            throw std::runtime_error("No operator found in condition: " + expr);
-        }
-        var = expr.substr(0, opPos);
-        varEnd = opPos;
-    }
-    
-    // Parse operator and value
-    size_t opPos = expr.find_first_of("><=!", varEnd);
-    if (opPos == std::string::npos) {
-        throw std::runtime_error("No operator found in condition: " + expr);
-    }
-    
-    if (opPos + 1 < expr.length() && expr[opPos + 1] == '=') {
-        op = expr.substr(opPos, 2);
-        value = std::stod(expr.substr(opPos + 2));
-    } else {
-        op = expr.substr(opPos, 1);
-        value = std::stod(expr.substr(opPos + 1));
-    }
-    
-    // Create lambda for this condition
-    return [var, op, value, useAbs](const fastjet::PseudoJet& jet) -> bool {
-        double jetValue = 0.0;
-        
-        if (var == "pt") jetValue = jet.pt();
-        else if (var == "eta") jetValue = jet.eta();
-        else if (var == "phi") jetValue = jet.phi();
-        else if (var == "e" || var == "energy") jetValue = jet.e();
-        else {
-            std::cerr << "Warning: Unknown variable '" << var << "'" << std::endl;
-            return true;
-        }
-        
-        if (useAbs) jetValue = std::abs(jetValue);
-        
-        if (op == ">") return jetValue > value;
-        if (op == "<") return jetValue < value;
-        if (op == ">=") return jetValue >= value;
-        if (op == "<=") return jetValue <= value;
-        if (op == "==") return std::abs(jetValue - value) < 1e-6;
-        if (op == "!=") return std::abs(jetValue - value) >= 1e-6;
-        
-        return true;
-    };
+    filterConditions_ = FilterParser(filter).parse();
 }
 
 bool JetAnalyzer::passesFilter(const fastjet::PseudoJet& jet) const {
