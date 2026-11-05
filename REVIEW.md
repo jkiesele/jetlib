@@ -293,6 +293,22 @@ Build: the container build is clean, with no warnings, for both `jetlib` and `je
 - `checks/check_output.py` now also checks the index branches (pT rank 0…n−1 per event, `eventIndex` sorted) and the provenance (seed, counters, config, version). **Result: 29/29 checks passed.**
 - Limitation: for `--seed 0`, the effective time-based seed cannot be recorded, because Pythia 8.306 keeps it private (`Rndm::seedSave`, with no getter).
 
+## Batch 3: rename, and a seed drawn by jetlib (decided by the user)
+
+The user chose the branch rename only. The scalar branches (5.2) stay as they are. The user also decided that jetlib, not Pythia, picks the seed for `--seed 0`.
+
+| Commit | Findings | Change |
+|---|---|---|
+| `cb19a50` | 5.1 | Branch `jetConsituentsEta` renamed to `jetConstituentsEta`. The contents are unchanged. Readers of the old name must be updated; DICE does not read this branch. |
+| `274b738` | 7.1, 5.3 | For a requested seed of 0 (the CLI default, or a config with `Random:seed = 0`), jetlib draws a seed in [1, 900000000] (`std::random_device`, nanosecond time and PID, mixed with splitmix64) and passes it to Pythia. The seed used is printed, along with how to reproduce the run, and stored as `jetlib/seed`. `jetlib/seed_requested` keeps the request. Explicit seeds are unchanged. |
+
+**Verification** (`checks/check_output.py`, **30/30 checks passed**):
+- Two `--seed 0` runs started at the same moment differ (drawn seeds 614434204 and 267608595). Before this change, simultaneous runs were identical.
+- Rerunning with the recorded seed (`--seed 614434204`) reproduces the `--seed 0` run exactly.
+- Four simultaneous default runs drew four different seeds, and all outputs differ pairwise.
+- Explicit seeds: output identical to the reference build (the renamed branch was compared under its new name).
+- Python: with no `setSeed` and the config at seed 0, a seed is drawn and `getSeed()` returns it. `setSeed(42)` gives 42.
+
 **Still open:**
-- Batch 3, which breaks the format and needs a decision: 5.1, 5.2.
-- Also open: 2.3 filter parser, 4.1–4.3 Python bindings, 6.4 default config path, 6.6–6.10 build, docs and design, and 7.1 (time seed; a warning is printed, and the effective seed is not recorded).
+- Not done, by decision: 5.2 (scalar branches).
+- Also open: 2.3 filter parser, 4.1–4.3 Python bindings, 6.4 default config path, and 6.6–6.10 build, docs and design.
