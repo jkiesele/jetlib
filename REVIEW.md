@@ -256,3 +256,29 @@ Build: the container build is clean, with no warnings, for both `jetlib` and `je
 - **Library impact:** yes, for parallel production with the default seed.
 - **Fix:** jetlib now prints a warning at startup and in the README. For production, give every job a distinct `--seed`. Further options: store the effective seed in the output, or derive the default seed from time plus PID or a job ID.
 - **Confidence:** high (measured).
+
+---
+
+# Phase 3: fixing the remaining findings
+
+## Batch 1: robustness, with the jet output unchanged
+
+| Commit | Findings | Change |
+|---|---|---|
+| `a6eda6c` | 1.4, 1.7 | A config line that Pythia rejects, or a failed `init()`, throws with the line number. Failed `next()` calls are retried until the requested number of events is accepted, and the run aborts after more than `Main:timesAllowErrors` failures (configurable, default 10). The number of failures is printed. |
+| `b279d1a` | 2.1, 2.4 | The output file is opened before generation, and a failed open throws. The tree is created in the analyzer's own file (`TDirectory::TContext`). `JetAnalyzer` owns its `TFile` through `unique_ptr` and is non-copyable. |
+| `3456646` | 2.2, 2.5, 6.1, 6.2, 6.3 | `-n` must be a positive integer. Exceptions are caught in `main` and reported as `Error: …` with exit 1. Arguments are parsed once. `--help` exits 0. Only a positional argument ending in `.root` is taken as the output file. |
+
+**Verification:**
+- Regression: with `--seed 777` and 1000 events, the output is identical to the Phase 2 reference binary (`ref_e3e6770`) for four option sets: default, `--abs-eta --eta-min 1.7 --eta-max 2.6`, `--pt-min 10`, and `--keep-prompt-leptons`.
+- `checks/check_output.py` now also takes `--ref-bin` and checks the failure modes. **Result: 27/27 checks passed**. New in this round:
+  - `-n -1`, `-n abc`, `-n 0` and `foo.rootx` exit 1 with a message.
+  - A config typo exits 1 and reports "Pythia did not accept line 7 … 'Top:gg2ttbarr = on'".
+  - An unwritable output path fails after 2 s (with n = 2000), before generation.
+  - `--help` exits 0.
+- In Python, `JetAnalyzer("/nonexistent/x.root")` raises `RuntimeError`. With two analyzers, the tree lands in the first analyzer's file (115 jets), as intended.
+
+**Still open:**
+- Batch 2: 3.1 memory (streaming), 1.8 event index, 5.3 provenance.
+- Batch 3, which breaks the format and needs a decision: 5.1, 5.2.
+- Also open: 2.3 filter parser, 4.1–4.3 Python bindings, 6.4 default config path, 6.6–6.10 build, docs and design, and 7.1 (time seed; a warning is printed).

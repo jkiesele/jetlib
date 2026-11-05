@@ -39,6 +39,8 @@ def parse_args():
     p.add_argument("--final-bin", required=True)
     p.add_argument("--b-bin", required=True)
     p.add_argument("--master-bin", required=True)
+    p.add_argument("--ref-bin", help="optional earlier build of this branch; its default output (same seed) "
+                                     "must be identical to --final-bin (regression check for refactors)")
     p.add_argument("--config", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "ttbar.cfg"))
     p.add_argument("--workdir", required=True, help="scratch directory for outputs")
     p.add_argument("--nevents", type=int, default=2000)
@@ -136,6 +138,8 @@ def main():
         "c_default": (args.final_bin, s, None),
         "c_keep":    (args.final_bin, s + ["--keep-prompt-leptons"], None),
     }
+    if args.ref_bin:
+        jobs["ref_default"] = (args.ref_bin, s, None)
     t0 = time.time()
     with ThreadPoolExecutor(args.jobs) as ex:
         futs = {k: ex.submit(R.run, b, e, f"{k}.root", c) for k, (b, e, c) in jobs.items()}
@@ -188,6 +192,10 @@ def main():
           len(pt) > 0 and np.all((pt > 30) & (eta > -3) & (eta < 3)) and abs(npos - nneg) < 3 * np.sqrt(len(pt)),
           f"{len(pt)} jets, pt min {pt.min():.2f}, eta in [{eta.min():.3f}, {eta.max():.3f}], eta>0: {npos}, eta<0: {nneg}")
 
+    if args.ref_bin:
+        check("final == reference build (default args, same seed)", same_contents(p["c_default"], p["ref_default"]),
+              f"reference {args.ref_bin}")
+
     # 5. particle content (change C)
     k = read(p["c_keep"])
     nu = lambda arr: int(sum(np.isin(np.abs(x), [12, 14, 16]).sum() for x in arr["jetConstituentsPdgId"]))
@@ -200,11 +208,30 @@ def main():
     # 6. invalid arguments
     bad = [["--pt-min", "-1"], ["--pt-min", "50", "--pt-max", "40"], ["--eta-min", "2", "--eta-max", "1"],
            ["--abs-eta", "--eta-max", "-1"], ["--eta-min", "abc"], ["--pt-max"],
-           ["--seed", "-1"], ["--seed", "900000001"], ["--seed", "1.5"], ["--seed"]]
+           ["--seed", "-1"], ["--seed", "900000001"], ["--seed", "1.5"], ["--seed"],
+           ["-n", "-1"], ["-n", "abc"], ["-n", "0"], ["foo.rootx"]]
     for b in bad:
         rc, log, _ = R.run(args.final_bin, b, n=1)
         msg = next((l for l in log.splitlines() if l.startswith("Error")), "")
         check(f"invalid args {' '.join(b)}", rc != 0 and msg, f"exit {rc}: {msg}")
+
+    # 7. failure modes (review 1.4, 2.1, 6.2)
+    typo_cfg = os.path.join(R.workdir, "typo.cfg")
+    with open(R.config) as f:
+        typo = f.read().replace("Top:gg2ttbar", "Top:gg2ttbarr")
+    with open(typo_cfg, "w") as f:
+        f.write(typo)
+    rc, log, _ = R.run(args.final_bin, s, config=typo_cfg)
+    msg = next((l for l in log.splitlines() if l.startswith("Error")), "")
+    check("config typo fails", rc != 0 and "did not accept" in msg, f"exit {rc}: {msg}")
+    t = time.time()
+    rc, log, _ = R.run(args.final_bin, s + ["-f", "/nonexistent/dir/x.root"])
+    dt = time.time() - t
+    msg = next((l for l in log.splitlines() if l.startswith("Error")), "")
+    check("unwritable output fails before generation", rc != 0 and msg and dt < 30,
+          f"exit {rc} after {dt:.0f} s (n = {R.n}): {msg}")
+    rc, log, _ = R.run(args.final_bin, ["--help"], n=1)
+    check("--help exits 0", rc == 0 and "Usage" in log, f"exit {rc}")
 
     nfail = sum(not ok for _, ok, _ in results)
     print(f"\n{len(results) - nfail}/{len(results)} checks passed")
