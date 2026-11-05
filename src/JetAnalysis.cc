@@ -27,8 +27,11 @@ void JetAnalysis::convertPythiaToPseudoJets(const Pythia8::Event& event, bool ke
     }
 }
 void JetAnalysis::clusterJets(double R, double ptMin) {
-    
     fastjet::JetDefinition jetDef(fastjet::antikt_algorithm, R);
-    clusterSeq_ = std::make_unique<fastjet::ClusterSequence>(particles_, jetDef);
-    jets_ = clusterSeq_->inclusive_jets(ptMin);
+    auto clusterSeq = std::make_unique<fastjet::ClusterSequence>(particles_, jetDef);
+    jets_ = clusterSeq->inclusive_jets(ptMin);
+    // The jets own the ClusterSequence: it is deleted when the last jet (or copy of one)
+    // referring to it is destroyed, so constituents() works as long as a jet exists.
+    // FastJet allows this only if at least one jet refers to it; otherwise delete it now.
+    if (!jets_.empty()) clusterSeq.release()->delete_self_when_unused();
 }

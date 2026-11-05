@@ -13,7 +13,8 @@ class JetAnalysis {
     JetAnalysis() {};
     ~JetAnalysis() {};
 
-    // ptMin: minimum jet pT kept by the clustering step
+    // ptMin: minimum jet pT kept by the clustering step. The returned jets keep their
+    // ClusterSequence alive (constituents() stays valid as long as a jet exists).
     void clusterJets(double R, double ptMin = 20.0);
     std::vector<fastjet::PseudoJet> getJets(double ptMin) const {
       std::vector<fastjet::PseudoJet> selectedJets;
@@ -45,7 +46,6 @@ class JetAnalysis {
 
   private:
     std::vector<fastjet::PseudoJet> jets_, particles_;
-    std::unique_ptr<fastjet::ClusterSequence> clusterSeq_;
     size_t nRemovedInvisible_ = 0;
     size_t nRemovedPromptLeptons_ = 0;
 };

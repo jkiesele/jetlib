@@ -60,15 +60,15 @@ class EventGenerator {
     }
     
     // Called once per accepted event with its clustered jets and the event index
-    // (0-based, counting accepted events). The jets' ClusterSequence is alive only
-    // during the call, so constituents must be used or copied inside it.
+    // (0-based, counting accepted events). The jets keep their ClusterSequence alive;
+    // it is freed after the call unless the callback keeps copies of the jets.
     using EventCallback = std::function<void(const std::vector<fastjet::PseudoJet>& jets, size_t eventIndex)>;
 
     // Generates events until nEvents have been accepted. Failed pythia.next() calls are
     // counted and retried; more failures than Main:timesAllowErrors (config, default 10)
     // abort the run with an exception.
     // With onEvent, each event is handed over and then freed (constant memory).
-    // Without it, all jets and their ClusterSequences are kept for getJetCollection().
+    // Without it, all jets (and with them their ClusterSequences) are kept for getJetCollection().
     void generateEvents(size_t nEvents, const EventCallback& onEvent = nullptr) {
       const int maxFailed = pythia_.mode("Main:timesAllowErrors");
       for (size_t accepted = 0; accepted < nEvents; ) {
@@ -88,10 +88,9 @@ class EventGenerator {
         jetAnalysis->clusterJets(kJetR, clusterPtMin_);
         auto jets = jetAnalysis->getJets(clusterPtMin_);
         if (onEvent) {
-          onEvent(jets, eventIndex);   // jetAnalysis (and its ClusterSequence) is freed afterwards
+          onEvent(jets, eventIndex);
         } else {
-          jetCollection_.push_back(jets);
-          jetAnalysisCollection_.push_back(std::move(jetAnalysis));
+          jetCollection_.push_back(std::move(jets));
         }
       }
     }
@@ -158,7 +157,6 @@ class EventGenerator {
   private:
     Pythia8::Pythia pythia_;
     JetCollection jetCollection_;
-    std::vector<std::unique_ptr<JetAnalysis>> jetAnalysisCollection_;
     std::string configFile_;
     std::string configText_;
     double clusterPtMin_ = 20.0;

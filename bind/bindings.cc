@@ -6,9 +6,20 @@
 #include "JetAnalyzer.h"
 #include "JetSelection.h"
 #include "fastjet/PseudoJet.hh"
+#include "fastjet/Error.hh"
 
 PYBIND11_MODULE(jetlibpy, m) {
     m.doc() = "Python bindings for jetlib";
+
+    // fastjet::Error does not derive from std::exception; without this it would arrive
+    // in Python as "Caught an unknown exception!".
+    pybind11::register_exception_translator([](std::exception_ptr p) {
+        try {
+            if (p) std::rethrow_exception(p);
+        } catch (const fastjet::Error& e) {
+            PyErr_SetString(PyExc_RuntimeError, ("FastJet: " + e.message()).c_str());
+        }
+    });
 
     // Bind fastjet::PseudoJet
     pybind11::class_<fastjet::PseudoJet>(m, "PseudoJet")
