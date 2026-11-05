@@ -197,3 +197,60 @@ Scope: all of `jetlib.cc`, `interface/`, `src/`, `bind/bindings.cc`, `config/`, 
 - Constituent completeness: the sum of `jetConstituentsE` equals `jetEnergy` to within 1e-12, and DICE's branches `jetConstituentsPx/Py/Pz/PdgId` are present.
 - With a fixed seed in the config, master is fully reproducible (identical contents across two runs).
 - In 4000 ttbar events with a valid config, no `pythia.next()` failures occurred.
+
+---
+
+# Phase 2 results
+
+Branch `feature/selection-seed`, not pushed. Commits:
+
+| Commit | Change |
+|---|---|
+| `3791732` | **A.** Configurable jet selection: `--pt-min`, `--pt-max`, `--eta-min`, `--eta-max`, `--abs-eta`. The hardcoded filter is removed. The defaults are pT > 30 and signed η > 1.7, all cuts strict. The clustering threshold is `min(20, --pt-min)`. The selection is validated and printed. `JetSelection` is exposed in Python. |
+| `a4bc542` | **B.** `--seed <int>`, default 0 (time-based). It is applied after the config file and before `pythia.init()`, and accepts the range [0, 900000000]. The seed is printed. `EventGenerator.setSeed` is exposed in Python. |
+| `8eb870e` | **C.** Requested by the user after the review. Invisible particles (`!isVisible()`) are never clustered. Prompt e/μ (no hadron from hadronization or decays among their ancestors) are removed by default, and `--keep-prompt-leptons` keeps them. The mode and the numbers of removed particles are printed. `setKeepPromptLeptons` is exposed in Python. |
+
+The review findings this resolves: 1.1 (selection), 1.2 (neutrinos), 1.3 (prompt leptons, now configurable), 1.5 (seed override; the seed is still not stored in the file), and 1.6 (clustering threshold). The other findings are still open, as agreed.
+
+**Behaviour changes to note:**
+- With C, the default output differs from master: there are fewer jets, and none of them are fake neutrino or lepton "jets". The "identical to master" check is therefore run against commit B.
+- Python users of `EventGenerator` and `JetAnalysis` now also get invisibles and prompt leptons removed by default. `JetAnalyzer` without a selection still accepts all jets, as before.
+
+## Acceptance checks
+
+The script is `checks/check_output.py`. It runs the binaries in the DICE container and compares the tree contents with uproot. Setup: ttbar, 2000 events per run, `--seed 12345`. The master reference is unchanged master `7bc2c3b`, with the seed set in a temporary copy of the config under `$SCRATCH`. The reference builds are git worktrees in `/ceph/jkiesele/temp_data/jetlib/builds/{master,commitB}`.
+
+```
+.venv/bin/python checks/check_output.py --final-bin build/jetlib \
+    --b-bin /ceph/jkiesele/temp_data/jetlib/builds/commitB/build/jetlib \
+    --master-bin /ceph/jkiesele/temp_data/jetlib/builds/master/build/jetlib \
+    --workdir /ceph/jkiesele/temp_data/jetlib/checks
+```
+
+**Result: 19/19 checks passed.**
+
+| Check | Result |
+|---|---|
+| Defaults identical to master (commit B, same seed) | PASS: 1508 jets, all branches identical |
+| Same `--seed` twice gives identical contents | PASS |
+| `--seed 0` twice gives different contents (runs started more than 1 s apart) | PASS |
+| `--abs-eta --eta-min 1.7 --eta-max 2.6 --pt-min 30`: all jets inside the cuts | PASS: 1706 jets, pT ≥ 30.00, \|η\| in [1.700, 2.600] |
+| … both η signs balanced | PASS: 847 with η > 0, 859 with η < 0 (difference 12, limit 3√n = 124) |
+| `--pt-min 10` gives jets with 10 < pT < 20 | PASS: 1107 of 2778 jets |
+| Final build, default selection pT > 30 and η > 1.7 | PASS: 1255 jets |
+| No neutrinos in the output | PASS: 0 neutrino constituents, in both default and keep mode |
+| Prompt leptons removed by default and kept with the flag | PASS: jets with one e/μ carrying > 50% of E: 0.24% by default, 6.29% with `--keep-prompt-leptons` |
+| 10 invalid argument sets (negative or reversed cuts, non-numbers, missing values, seed −1, 900000001, 1.5, missing) | PASS: each exits 1 with an `Error: …` message |
+
+Other validation of C, from the run logs: in 2000 ttbar events, 1033 prompt leptons were removed (0.52 per event). That matches the expectation from W→e/μ, directly or through τ. 205 jets still contain e/μ from hadron decays, which is intended.
+
+Build: the container build is clean, with no warnings, for both `jetlib` and `jetlibpy`. The Python bindings were tested for `JetSelection`, `setSeed` (out-of-range values raise `ValueError`), `setKeepPromptLeptons` and `setClusterPtMin`.
+
+## New finding from Phase 2
+
+### 7.1 Time-based seeds have 1 s resolution
+- **Location:** Pythia's handling of `Random:seed = 0`, which is the default of `--seed` and of all configs.
+- **Problem:** *Measured:* two `--seed 0` runs started at the same moment produced **identical** output. Batch jobs that start in the same second therefore generate the same events, and a merged library would contain duplicate jets.
+- **Library impact:** yes, for parallel production with the default seed.
+- **Fix:** jetlib now prints a warning at startup and in the README. For production, give every job a distinct `--seed`. Further options: store the effective seed in the output, or derive the default seed from time plus PID or a job ID.
+- **Confidence:** high (measured).
