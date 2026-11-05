@@ -15,6 +15,7 @@ class ArgumentParser {
     int nEvents_;
     JetSelection selection_;
     long seed_;
+    bool keepPromptLeptons_;
 
     // Parse a floating-point option value; the whole string must be a finite number.
     static bool parseDouble(const std::string& opt, const char* text, double& out) {
@@ -37,7 +38,7 @@ class ArgumentParser {
     }
     
   public:
-    ArgumentParser() : filename_("output.root"), configFile_("../config/ttbar.cfg"), debug_(false), nEvents_(1), selection_(defaultSelection()), seed_(0) {}
+    ArgumentParser() : filename_("output.root"), configFile_("../config/ttbar.cfg"), debug_(false), nEvents_(1), selection_(defaultSelection()), seed_(0), keepPromptLeptons_(false) {}
     
     bool parse(int argc, char** argv) {
         for (int i = 1; i < argc; ++i) {
@@ -94,6 +95,9 @@ class ArgumentParser {
                 }
                 seed_ = static_cast<long>(v);
             }
+            else if (arg == "--keep-prompt-leptons") {
+                keepPromptLeptons_ = true;
+            }
             else if (arg == "--abs-eta") {
                 selection_.absEta = true;
             }
@@ -140,6 +144,9 @@ class ArgumentParser {
         std::cout << "  -d, --debug              Enable debug mode" << std::endl;
         std::cout << "      --seed <int>         Pythia random seed in [0, 900000000], overrides the config file" << std::endl;
         std::cout << "                           (default: 0 = time-based, different on every run)" << std::endl;
+        std::cout << "      --keep-prompt-leptons  Cluster prompt e/mu (from W/Z/tau, not from hadron decays)" << std::endl;
+        std::cout << "                           (default: removed before clustering)" << std::endl;
+        std::cout << "  Neutrinos and other invisible particles are never clustered." << std::endl;
         std::cout << std::endl;
         std::cout << "Jet selection (all cuts strict; default: pt > 30 && eta > 1.7):" << std::endl;
         std::cout << "      --pt-min <GeV>       Minimum jet pT (default: 30, must be >= 0)" << std::endl;
@@ -160,6 +167,7 @@ class ArgumentParser {
     int getNEvents() const { return nEvents_; }
     const JetSelection& getSelection() const { return selection_; }
     long getSeed() const { return seed_; }
+    bool keepPromptLeptons() const { return keepPromptLeptons_; }
 };
 
 #endif

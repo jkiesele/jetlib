@@ -13,6 +13,15 @@ make -jN
 ```
 Jetlib uses `fastjet-3.5.0` and `pythia8.306`
 
+## Particles that are clustered
+
+Only visible final-state particles enter the jet clustering:
+
+- Neutrinos and other invisible particles (Pythia `isVisible() == false`) are always removed.
+- Prompt leptons are removed by default. These are final-state electrons and muons without a hadron among their ancestors, for example from W, Z or τ decays. Leptons from hadron decays (e.g. semileptonic b decays) stay in the jets. Use `--keep-prompt-leptons` to cluster prompt leptons too.
+
+The numbers of removed particles are printed at the end of the run. In Python: `EventGenerator.setKeepPromptLeptons(True)`.
+
 ## Jet selection
 
 By default jetlib writes jets with `pt > 30` GeV and signed `eta > 1.7`, with no upper limits. The selection can be changed on the command line. All cuts are strict (`> min`, `< max`).

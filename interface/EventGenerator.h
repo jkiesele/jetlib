@@ -42,7 +42,9 @@ class EventGenerator {
         if (!pythia_.next()) continue;
         const Pythia8::Event& event = pythia_.event;
         auto jetAnalysis = std::make_unique<JetAnalysis>(); 
-        jetAnalysis->convertPythiaToPseudoJets(event);
+        jetAnalysis->convertPythiaToPseudoJets(event, keepPromptLeptons_);
+        nRemovedInvisible_ += jetAnalysis->nRemovedInvisible();
+        nRemovedPromptLeptons_ += jetAnalysis->nRemovedPromptLeptons();
         jetAnalysis->clusterJets(0.4, clusterPtMin_);
         auto jets = jetAnalysis->getJets(clusterPtMin_);    
         jetCollection_.push_back(jets);
@@ -57,6 +59,13 @@ class EventGenerator {
       clusterPtMin_ = ptMin;
     }
     double getClusterPtMin() const { return clusterPtMin_; }
+
+    // Prompt leptons (e/mu not from hadron decays) are removed before clustering
+    // unless this is set to true. Invisible particles are always removed.
+    void setKeepPromptLeptons(bool keep) { keepPromptLeptons_ = keep; }
+    bool getKeepPromptLeptons() const { return keepPromptLeptons_; }
+    size_t getNRemovedInvisible() const { return nRemovedInvisible_; }
+    size_t getNRemovedPromptLeptons() const { return nRemovedPromptLeptons_; }
 
     // Override the random seed of the config file. 0 means time-based seeding.
     // Negative values (Pythia's "default seed") are rejected by jetlib policy.
@@ -81,6 +90,9 @@ class EventGenerator {
     std::string configFile_;
     double clusterPtMin_ = 20.0;
     bool hasSeed_ = false;
+    bool keepPromptLeptons_ = false;
+    size_t nRemovedInvisible_ = 0;
+    size_t nRemovedPromptLeptons_ = 0;
     long seed_ = 0;
 };
 

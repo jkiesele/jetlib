@@ -1,8 +1,26 @@
 #include "JetAnalysis.h"
 
-void JetAnalysis::convertPythiaToPseudoJets(const Pythia8::Event& event) {
+#include <cstdlib>
+
+bool JetAnalysis::isPromptLepton(const Pythia8::Event& event, int i) {
+    const int absId = std::abs(event[i].id());
+    if (absId != 11 && absId != 13) return false;
+    // Walk up the mother1 chain. Hadrons from hadronization or decays have
+    // |status| 81-99; the beam protons (status -12) do not count.
+    int j = event[i].mother1();
+    for (int guard = 0; j > 0 && guard < event.size(); ++guard) {
+      const int absStatus = std::abs(event[j].status());
+      if (event[j].isHadron() && absStatus >= 81 && absStatus <= 99) return false;
+      j = event[j].mother1();
+    }
+    return true;
+}
+
+void JetAnalysis::convertPythiaToPseudoJets(const Pythia8::Event& event, bool keepPromptLeptons) {
     for (int i = 0; i < event.size(); ++i) {
       if (!event[i].isFinal()) continue;
+      if (!event[i].isVisible()) { ++nRemovedInvisible_; continue; }
+      if (!keepPromptLeptons && isPromptLepton(event, i)) { ++nRemovedPromptLeptons_; continue; }
       fastjet::PseudoJet particle(event[i].px(), event[i].py(), event[i].pz(), event[i].e());
       particle.set_user_index(event[i].id());
       particles_.push_back(particle);

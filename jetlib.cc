@@ -46,11 +46,18 @@ int main(int argc, char** argv) {
                               " identical events; use distinct --seed values for parallel jobs)" : "")
               << std::endl;
 
+    const bool keepPromptLeptons = argParser.keepPromptLeptons();
+    std::cout << "Particles clustered: visible final state; neutrinos/invisibles removed; prompt e/mu "
+              << (keepPromptLeptons ? "kept" : "removed") << std::endl;
+
     EventGenerator eventGen(configFile);
+    eventGen.setKeepPromptLeptons(keepPromptLeptons);
     eventGen.setClusterPtMin(clusterPtMin);
     eventGen.setSeed(seed);
     eventGen.initialize();
     eventGen.generateEvents(nEvents);
+    std::cout << "Removed before clustering: " << eventGen.getNRemovedInvisible() << " invisible particles, "
+              << eventGen.getNRemovedPromptLeptons() << " prompt leptons" << std::endl;
     const JetCollection& jets = eventGen.getJetCollection();
     if (debug) {
         printEventInfo(jets);

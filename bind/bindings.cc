@@ -31,6 +31,10 @@ PYBIND11_MODULE(jetlibpy, m) {
         .def("getJetCollection", &EventGenerator::getJetCollection)
         .def("setClusterPtMin", &EventGenerator::setClusterPtMin, pybind11::arg("ptMin"))
         .def("getClusterPtMin", &EventGenerator::getClusterPtMin)
+        .def("setKeepPromptLeptons", &EventGenerator::setKeepPromptLeptons, pybind11::arg("keep"))
+        .def("getKeepPromptLeptons", &EventGenerator::getKeepPromptLeptons)
+        .def("getNRemovedInvisible", &EventGenerator::getNRemovedInvisible)
+        .def("getNRemovedPromptLeptons", &EventGenerator::getNRemovedPromptLeptons)
         .def("setSeed", &EventGenerator::setSeed, pybind11::arg("seed"),
              "Override the config seed (0 = time-based, max 900000000). Call before initialize().");
 
@@ -50,7 +54,8 @@ PYBIND11_MODULE(jetlibpy, m) {
         .def(pybind11::init<>())
         .def("clusterJets", &JetAnalysis::clusterJets, pybind11::arg("R"), pybind11::arg("ptMin") = 20.0)
         .def("getJets", &JetAnalysis::getJets)
-        .def("convertPythiaToPseudoJets", &JetAnalysis::convertPythiaToPseudoJets)
+        .def("convertPythiaToPseudoJets", &JetAnalysis::convertPythiaToPseudoJets,
+             pybind11::arg("event"), pybind11::arg("keepPromptLeptons") = false)
         .def("clear", &JetAnalysis::clear);
 
     pybind11::class_<JetAnalyzer>(m, "JetAnalyzer")
