@@ -180,6 +180,9 @@ bool JetAnalyzer::passesFilter(const fastjet::PseudoJet& jet) const {
 }
 
 void JetAnalyzer::analyze(const JetCollection& jetCollection) {
+    // Create the tree in this analyzer's file, not in whatever gDirectory currently is
+    // (another JetAnalyzer may have opened a file in the meantime).
+    TDirectory::TContext context(outputFile_.get());
     TTree* tree = new TTree("JetTree", "Jet Analysis Tree");
     setBranches(tree);
 

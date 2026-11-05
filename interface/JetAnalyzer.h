@@ -6,16 +6,26 @@
 #include "JetCollection.h"
 #include "JetSelection.h"
 #include "TTree.h"
+#include "TDirectory.h"
 #include <string>
 #include <functional>
+#include <memory>
+#include <stdexcept>
 class JetAnalyzer {
   public:
-    JetAnalyzer(std::string outputFilename = "jet_analysis.root") {
-      outputFile_ = TFile::Open(outputFilename.c_str(), "RECREATE");
+    // Opens (recreates) the output file immediately; throws if it cannot be opened,
+    // so a bad path is detected before any events are generated.
+    JetAnalyzer(std::string outputFilename = "jet_analysis.root")
+      : outputFile_(TFile::Open(outputFilename.c_str(), "RECREATE")) {
+      if (!outputFile_ || outputFile_->IsZombie())
+        throw std::runtime_error("Could not open output file: " + outputFilename);
     }
     ~JetAnalyzer() {
-      outputFile_->Close();
+      if (outputFile_) outputFile_->Close();
     }
+    // owns the output file: not copyable
+    JetAnalyzer(const JetAnalyzer&) = delete;
+    JetAnalyzer& operator=(const JetAnalyzer&) = delete;
 
     void analyze(const JetCollection& jetCollection);
     void setFilter(const std::string& filter);
@@ -23,7 +33,7 @@ class JetAnalyzer {
     void setSelection(const JetSelection& selection) { selection.validate(); selection_ = selection; }
     const JetSelection& getSelection() const { return selection_; }
   private:
-    TFile* outputFile_;
+    std::unique_ptr<TFile> outputFile_;
 
     std::vector<double> jetPt_;
     std::vector<double> jetEta_;

@@ -50,6 +50,9 @@ int main(int argc, char** argv) {
     std::cout << "Particles clustered: visible final state; neutrinos/invisibles removed; prompt e/mu "
               << (keepPromptLeptons ? "kept" : "removed") << std::endl;
 
+    // open the output first, so an unusable path fails before the generation
+    JetAnalyzer jetAnalyzer(outputFilename);
+
     EventGenerator eventGen(configFile);
     eventGen.setKeepPromptLeptons(keepPromptLeptons);
     eventGen.setClusterPtMin(clusterPtMin);
@@ -64,7 +67,6 @@ int main(int argc, char** argv) {
     if (debug) {
         printEventInfo(jets);
     }
-    JetAnalyzer jetAnalyzer(outputFilename);
     jetAnalyzer.setSelection(selection);
     jetAnalyzer.analyze(jets);
     return 0;
