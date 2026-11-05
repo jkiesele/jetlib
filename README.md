@@ -34,3 +34,15 @@ Example: both forward regions, 1.7 < |η| < 2.6, pT > 30 GeV:
 ```
 
 In Python the same selection is a `jetlibpy.JetSelection` passed to `JetAnalyzer.setSelection`.
+
+## Random seed
+
+`--seed <int>` sets the Pythia seed and always overrides `Random:seed` in the config file. The default is `0`, which Pythia turns into a time-based seed, so two runs differ. Allowed values are 0 to 900000000 (Pythia's maximum). Negative values are rejected; Pythia would map them to its fixed default seed. The seed is printed at startup.
+
+The time-based seed has a resolution of one second: jobs started in the same second produce identical events. For reproducible or parallel production, give every job its own non-zero seed:
+
+```bash
+./jetlib -c ../config/ttbar.cfg -f out_17.root -n 1000 --seed 17
+```
+
+In Python: `EventGenerator.setSeed(seed)` before `initialize()`.

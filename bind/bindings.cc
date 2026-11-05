@@ -30,7 +30,9 @@ PYBIND11_MODULE(jetlibpy, m) {
         .def("generateEvents", &EventGenerator::generateEvents)
         .def("getJetCollection", &EventGenerator::getJetCollection)
         .def("setClusterPtMin", &EventGenerator::setClusterPtMin, pybind11::arg("ptMin"))
-        .def("getClusterPtMin", &EventGenerator::getClusterPtMin);
+        .def("getClusterPtMin", &EventGenerator::getClusterPtMin)
+        .def("setSeed", &EventGenerator::setSeed, pybind11::arg("seed"),
+             "Override the config seed (0 = time-based, max 900000000). Call before initialize().");
 
     pybind11::class_<JetSelection>(m, "JetSelection")
         .def(pybind11::init<>())

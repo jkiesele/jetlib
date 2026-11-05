@@ -14,6 +14,7 @@ class ArgumentParser {
     bool debug_;
     int nEvents_;
     JetSelection selection_;
+    long seed_;
 
     // Parse a floating-point option value; the whole string must be a finite number.
     static bool parseDouble(const std::string& opt, const char* text, double& out) {
@@ -36,7 +37,7 @@ class ArgumentParser {
     }
     
   public:
-    ArgumentParser() : filename_("output.root"), configFile_("../config/ttbar.cfg"), debug_(false), nEvents_(1), selection_(defaultSelection()) {}
+    ArgumentParser() : filename_("output.root"), configFile_("../config/ttbar.cfg"), debug_(false), nEvents_(1), selection_(defaultSelection()), seed_(0) {}
     
     bool parse(int argc, char** argv) {
         for (int i = 1; i < argc; ++i) {
@@ -70,6 +71,28 @@ class ArgumentParser {
                 else if (arg == "--pt-max") selection_.ptMax = v;
                 else if (arg == "--eta-min") selection_.etaMin = v;
                 else selection_.etaMax = v;
+            }
+            else if (arg == "--seed") {
+                if (i + 1 >= argc) {
+                    std::cerr << "Error: --seed requires an integer argument" << std::endl;
+                    return false;
+                }
+                std::string s(argv[++i]);
+                long long v = 0;
+                size_t pos = 0;
+                bool ok = false;
+                try { v = std::stoll(s, &pos); ok = (pos == s.size()); } catch (const std::exception&) {}
+                if (!ok) {
+                    std::cerr << "Error: --seed expects an integer, got '" << s << "'" << std::endl;
+                    return false;
+                }
+                if (v < 0 || v > 900000000) {
+                    std::cerr << "Error: --seed must be in [0, 900000000], got " << s
+                              << ". Pythia's maximum is 900000000; negative seeds (Pythia's default seed)"
+                              << " are not accepted by jetlib. Use 0 for a time-based seed." << std::endl;
+                    return false;
+                }
+                seed_ = static_cast<long>(v);
             }
             else if (arg == "--abs-eta") {
                 selection_.absEta = true;
@@ -115,6 +138,8 @@ class ArgumentParser {
         std::cout << "  -f, --filename <file>    Output ROOT filename (default: output.root)" << std::endl;
         std::cout << "  -n, --nEvents <number>   Number of events to generate (default: 1)" << std::endl;
         std::cout << "  -d, --debug              Enable debug mode" << std::endl;
+        std::cout << "      --seed <int>         Pythia random seed in [0, 900000000], overrides the config file" << std::endl;
+        std::cout << "                           (default: 0 = time-based, different on every run)" << std::endl;
         std::cout << std::endl;
         std::cout << "Jet selection (all cuts strict; default: pt > 30 && eta > 1.7):" << std::endl;
         std::cout << "      --pt-min <GeV>       Minimum jet pT (default: 30, must be >= 0)" << std::endl;
@@ -134,6 +159,7 @@ class ArgumentParser {
     bool isDebug() const { return debug_; }
     int getNEvents() const { return nEvents_; }
     const JetSelection& getSelection() const { return selection_; }
+    long getSeed() const { return seed_; }
 };
 
 #endif

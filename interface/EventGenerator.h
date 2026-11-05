@@ -9,6 +9,9 @@
 
 class EventGenerator {
   public:
+    static constexpr long kSeedMin = 0;           // 0 = time-based seed in Pythia
+    static constexpr long kSeedMax = 900000000;   // Pythia's upper limit for Random:seed
+
     EventGenerator(const std::string& configFile) : configFile_(configFile) {};
     ~EventGenerator() {};
 
@@ -26,6 +29,11 @@ class EventGenerator {
         pythia_.readString(line);
       }
       infile.close();
+      // A seed set via setSeed() overrides whatever the config file says.
+      if (hasSeed_) {
+        pythia_.readString("Random:setSeed = on");
+        pythia_.readString("Random:seed = " + std::to_string(seed_));
+      }
       pythia_.init();
     }
     
@@ -50,6 +58,18 @@ class EventGenerator {
     }
     double getClusterPtMin() const { return clusterPtMin_; }
 
+    // Override the random seed of the config file. 0 means time-based seeding.
+    // Negative values (Pythia's "default seed") are rejected by jetlib policy.
+    // Must be called before initialize().
+    void setSeed(long seed) {
+      if (seed < kSeedMin || seed > kSeedMax)
+        throw std::invalid_argument("seed must be in [0, 900000000], got " + std::to_string(seed) +
+          " (Pythia's maximum is 900000000; negative seeds, which Pythia would map to its"
+          " default seed, are not accepted by jetlib)");
+      seed_ = seed;
+      hasSeed_ = true;
+    }
+
     const JetCollection& getJetCollection() const {
       return jetCollection_;
     }
@@ -60,6 +80,8 @@ class EventGenerator {
     std::vector<std::unique_ptr<JetAnalysis>> jetAnalysisCollection_;
     std::string configFile_;
     double clusterPtMin_ = 20.0;
+    bool hasSeed_ = false;
+    long seed_ = 0;
 };
 
 #endif

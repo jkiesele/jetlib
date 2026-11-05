@@ -40,9 +40,15 @@ int main(int argc, char** argv) {
     const double clusterPtMin = std::min(20.0, selection.ptMin);
     std::cout << "Jet selection: " << selection.describe() << std::endl;
     std::cout << "Clustering pT threshold: " << clusterPtMin << " GeV" << std::endl;
+    const long seed = argParser.getSeed();
+    std::cout << "Random seed: " << seed
+              << (seed == 0 ? " (time-based, 1 s resolution: jobs started in the same second produce"
+                              " identical events; use distinct --seed values for parallel jobs)" : "")
+              << std::endl;
 
     EventGenerator eventGen(configFile);
     eventGen.setClusterPtMin(clusterPtMin);
+    eventGen.setSeed(seed);
     eventGen.initialize();
     eventGen.generateEvents(nEvents);
     const JetCollection& jets = eventGen.getJetCollection();
