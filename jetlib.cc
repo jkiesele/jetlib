@@ -24,13 +24,7 @@ void printEventInfo(const JetCollection& jetCollection) {
     }
 }
 
-int main(int argc, char** argv) {
-
-    ArgumentParser argParser;
-    if (!argParser.parse(argc, argv)) {
-        return 1;
-    } 
-    argParser.parse(argc, argv);
+int run(const ArgumentParser& argParser) {
     bool debug = argParser.isDebug();
     size_t nEvents = argParser.getNEvents();
     std::string configFile = argParser.getConfigFile();
@@ -70,4 +64,19 @@ int main(int argc, char** argv) {
     jetAnalyzer.setSelection(selection);
     jetAnalyzer.analyze(jets);
     return 0;
+}
+
+int main(int argc, char** argv) {
+    ArgumentParser argParser;
+    if (!argParser.parse(argc, argv)) {
+        return argParser.helpRequested() ? 0 : 1;
+    }
+    try {
+        return run(argParser);
+    } catch (const fastjet::Error& e) {
+        std::cerr << "Error (FastJet): " << e.message() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+    return 1;
 }

@@ -12,7 +12,8 @@ class ArgumentParser {
     std::string filename_;
     std::string configFile_;
     bool debug_;
-    int nEvents_;
+    long nEvents_;
+    bool helpRequested_ = false;
     JetSelection selection_;
     long seed_;
     bool keepPromptLeptons_;
@@ -51,7 +52,16 @@ class ArgumentParser {
             
             if (arg == "--nEvents" || arg == "-n") {
                 if (i + 1 < argc) {
-                    nEvents_ = std::stoi(argv[++i]);
+                    std::string s(argv[++i]);
+                    long long v = 0;
+                    size_t pos = 0;
+                    bool ok = false;
+                    try { v = std::stoll(s, &pos); ok = (pos == s.size()); } catch (const std::exception&) {}
+                    if (!ok || v < 1) {
+                        std::cerr << "Error: " << arg << " expects a positive integer, got '" << s << "'" << std::endl;
+                        return false;
+                    }
+                    nEvents_ = static_cast<long>(v);
                 } else {
                     std::cerr << "Error: " << arg << " requires a number argument" << std::endl;
                     return false;
@@ -119,14 +129,15 @@ class ArgumentParser {
             }
             else if (arg == "--help" || arg == "-h") {
                 printUsage(argv[0]);
+                helpRequested_ = true;
                 return false;
             }
-            else if (arg.find(".root") != std::string::npos) {
-                // If it looks like a root file, treat it as filename
+            else if (arg[0] != '-' && arg.size() > 5 && arg.compare(arg.size() - 5, 5, ".root") == 0) {
+                // a positional argument ending in .root is the output filename
                 filename_ = arg;
             }
             else {
-                std::cerr << "Unknown argument: " << arg << std::endl;
+                std::cerr << "Error: unknown argument: " << arg << std::endl;
                 printUsage(argv[0]);
                 return false;
             }
@@ -147,7 +158,7 @@ class ArgumentParser {
         std::cout << "Options:" << std::endl;
         std::cout << "  -c, --config <file>      Configuration file for Pythia (default: config/ttbar.cfg)" << std::endl;
         std::cout << "  -f, --filename <file>    Output ROOT filename (default: output.root)" << std::endl;
-        std::cout << "  -n, --nEvents <number>   Number of events to generate (default: 1)" << std::endl;
+        std::cout << "  -n, --nEvents <number>   Number of events to generate, >= 1 (default: 1)" << std::endl;
         std::cout << "  -d, --debug              Enable debug mode" << std::endl;
         std::cout << "      --seed <int>         Pythia random seed in [0, 900000000], overrides the config file" << std::endl;
         std::cout << "                           (default: 0 = time-based, different on every run)" << std::endl;
@@ -171,7 +182,9 @@ class ArgumentParser {
     const std::string& getConfigFile() const { return configFile_; }
     const std::string& getFilename() const { return filename_; }
     bool isDebug() const { return debug_; }
-    int getNEvents() const { return nEvents_; }
+    long getNEvents() const { return nEvents_; }
+    // true if parse() returned false because --help was given (not an error)
+    bool helpRequested() const { return helpRequested_; }
     const JetSelection& getSelection() const { return selection_; }
     long getSeed() const { return seed_; }
     bool keepPromptLeptons() const { return keepPromptLeptons_; }
