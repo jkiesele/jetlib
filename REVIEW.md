@@ -339,3 +339,38 @@ The jet output is unchanged in this batch.
 - Builds: a fresh configure in an empty build directory works, and so does `-DJETLIB_PYTHON=OFF` (executable only). `-DFASTJET_DIR=/nonexistent` stops with the new message. The README's Python example runs, and a config with `PartonLevel:MPI = off` and `PartonLevel:ISR = off` runs.
 
 **Open:** none, apart from 5.2 (not done, by decision).
+
+## Runtime and memory compared with master
+
+Measured with `checks/timing.py` (commit `aafdca3`):
+- **Workload:** tt̄ (`config/ttbar.cfg`), runs at 1000 and 4000 events, three repetitions.
+- **Seeds:** the same seed for every variant within a repetition. Master gets it through a config copy.
+- **Measurement:** wall time, CPU time (user + sys) and peak memory (max RSS) of the jetlib process, measured inside the DICE container.
+- **Machine:** AMD EPYC 7452, shared, 6 runs in parallel.
+
+The variants:
+- `master`: the unchanged master build.
+- `branch`: the current build with default arguments.
+- `branch, master sel.`: the current build with `--eta-min 1.7 --eta-max 100`, which approximates master's selection. It separates the cost of writing more jets.
+
+Values are medians over the repetitions.
+
+| Events | Variant | Wall [s] | CPU [s] (range) | CPU / event [ms] | Max RSS [MB] | Jets written |
+|---|---|---|---|---|---|---|
+| 1000 | master | 12.7 | 10.3 (10.0–10.3) | 10.3 | 481 | 738 |
+| 1000 | branch | 12.8 | 10.1 (9.9–10.2) | 10.1 | 248 | 4,109 |
+| 1000 | branch, master sel. | 12.4 | 9.9 (9.8–10.1) | 9.9 | 239 | 608 |
+| 4000 | master | 39.4 | 36.7 (36.7–36.8) | 9.2 | 1193 | 2,916 |
+| 4000 | branch | 39.9 | 36.7 (36.7–36.9) | 9.2 | 238 | 16,776 |
+| 4000 | branch, master sel. | 38.5 | 35.9 (35.7–36.1) | 9.0 | 242 | 2,448 |
+
+**Result:**
+- **CPU time:** unchanged, at about 9.2 ms per event at 4000 events, although the branch writes 5.8 times as many jets. Pythia's event generation dominates. The added steps cost nothing measurable: the invisible-particle and prompt-lepton checks, writing per event, and provenance.
+- **Peak memory:** master's grows with the number of events (481 → 1193 MB from 1000 to 4000 events), because every event and its `ClusterSequence` are kept until the end (finding 3.1). The branch streams and stays at about 240 MB.
+- **Wall time:** follows the load of the shared machine.
+  - In a first round with 12 runs in parallel, the branch was 2–3 s (about 6%) slower in wall time at 4000 events, but not in CPU time.
+  - The gap disappeared with 6 runs in parallel (the table above).
+  - It also disappeared in a separate test that wrote the output to local disk and to /ceph with 8 runs in parallel; the branch was even about 1 s faster.
+  - So the gap came from load, not from the code. `timing.py` therefore defaults to 6 parallel runs.
+
+`checks/plausibility_report.py --timing <timing.json>` shows these numbers as plots in the HTML report.
