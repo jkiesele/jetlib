@@ -37,8 +37,9 @@ Only visible final-state particles enter the jet clustering:
 
 - Neutrinos and other invisible particles (Pythia `isVisible() == false`) are always removed.
 - Prompt leptons are removed by default. These are final-state electrons and muons without a hadron among their ancestors, for example from W, Z or τ decays. Leptons from hadron decays (e.g. semileptonic b decays) stay in the jets. Use `--keep-prompt-leptons` to cluster prompt leptons too.
+- Undecayed unstable particles are always removed. Rarely, a Pythia decay fails (`PYTHIA Error in ParticleDecays::decay: failed to find workable decay channel`) and the particle stays in the final state, e.g. an f₀(1370) (PDG 10221) whose mass was drawn below the thresholds of most of its decay channels. Detector simulations such as Geant4 do not know these particles. jetlib removes every final-state particle that Pythia should have decayed (`mayDecay()` and a decay table). The jets therefore contain only particles that are stable in Pythia's default settings (γ, e, μ, π±, K±, K⁰_L, p, n and antiparticles). Caveat: if the config leaves particles undecayed on purpose (`ParticleDecays:limitTau0`, `limitTau`, `limitRadius`, `limitCylinder`, or `HadronLevel:Decay = off`), e.g. K⁰_S or Λ, these are removed as well. The check is `checks/check_undecayed.py`.
 
-The numbers of removed particles are printed at the end of the run. In Python: `EventGenerator.setKeepPromptLeptons(True)`.
+The numbers of removed particles are printed at the end of the run (undecayed particles per PDG ID). In Python: `EventGenerator.setKeepPromptLeptons(True)`, `getNRemovedUndecayed()`, `getRemovedUndecayed()`.
 
 ## Event content (underlying event, pileup)
 
@@ -80,7 +81,7 @@ One jet per entry of the `JetTree` tree. Per-jet kinematics: `jetPt`, `jetEta`, 
 - `eventIndex`: index of the generated event in this run (0-based). Jets with the same `eventIndex` come from the same Pythia event.
 - `jetIndex`: pT rank of the jet among the selected jets of its event (0 = hardest).
 
-Provenance is stored as `TNamed` objects (the value is the title) in the directory `jetlib/`: `jetlib_version` (git describe of the build), `command_line`, `config_file`, `config` (full text), `seed`, `pythia_version`, `fastjet_version`, `jet_algorithm`, `cluster_pt_min`, `selection`, `particles`, and the counters `n_events_requested`, `n_events_accepted`, `n_failed_next`, `n_removed_invisible`, `n_removed_prompt_leptons` and `n_jets_written`. With uproot: `uproot.open(f)["jetlib/seed"].member("fTitle")`.
+Provenance is stored as `TNamed` objects (the value is the title) in the directory `jetlib/`: `jetlib_version` (git describe of the build), `command_line`, `config_file`, `config` (full text), `seed`, `pythia_version`, `fastjet_version`, `jet_algorithm`, `cluster_pt_min`, `selection`, `particles`, and the counters `n_events_requested`, `n_events_accepted`, `n_failed_next`, `n_removed_invisible`, `n_removed_prompt_leptons`, `n_removed_undecayed` (total, then counts per PDG ID) and `n_jets_written`. With uproot: `uproot.open(f)["jetlib/seed"].member("fTitle")`.
 
 Jets are written event by event, so consecutive entries are correlated. Shuffle them, or sample by `eventIndex`, if that matters.
 

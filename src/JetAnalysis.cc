@@ -16,14 +16,25 @@ bool JetAnalysis::isPromptLepton(const Pythia8::Event& event, int i) {
     return true;
 }
 
+bool JetAnalysis::isUndecayed(const Pythia8::Event& event, int i) {
+    // Pythia decays every particle with mayDecay() and a decay table. If such a particle is
+    // still in the final state, its decay failed (Pythia then prints "ParticleDecays::decay:
+    // failed to find workable decay channel" and keeps it), e.g. an f0(1370) whose mass was
+    // drawn below the thresholds of most of its channels. Such particles are unknown to
+    // detector simulations like Geant4.
+    return event[i].isFinal() && event[i].mayDecay() && event[i].canDecay();
+}
+
 void JetAnalysis::convertPythiaToPseudoJets(const Pythia8::Event& event, bool keepPromptLeptons) {
     // one event per call: start from an empty particle list and fresh counters
     clear();
     nRemovedInvisible_ = 0;
     nRemovedPromptLeptons_ = 0;
+    removedUndecayed_.clear();
     for (int i = 0; i < event.size(); ++i) {
       if (!event[i].isFinal()) continue;
       if (!event[i].isVisible()) { ++nRemovedInvisible_; continue; }
+      if (isUndecayed(event, i)) { ++removedUndecayed_[event[i].id()]; continue; }
       if (!keepPromptLeptons && isPromptLepton(event, i)) { ++nRemovedPromptLeptons_; continue; }
       fastjet::PseudoJet particle(event[i].px(), event[i].py(), event[i].pz(), event[i].e());
       particle.set_user_index(event[i].id());

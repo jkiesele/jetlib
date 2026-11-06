@@ -6,6 +6,8 @@
 #include "JetCollection.h"
 #include <fstream>
 #include <functional>
+#include <map>
+#include <string>
 #include <chrono>
 #include <cstdint>
 #include <random>
@@ -85,6 +87,10 @@ class EventGenerator {
         jetAnalysis->convertPythiaToPseudoJets(event, keepPromptLeptons_);
         nRemovedInvisible_ += jetAnalysis->nRemovedInvisible();
         nRemovedPromptLeptons_ += jetAnalysis->nRemovedPromptLeptons();
+        for (const auto& [id, n] : jetAnalysis->removedUndecayed()) {
+          removedUndecayed_[id] += n;
+          nRemovedUndecayed_ += n;
+        }
         jetAnalysis->clusterJets(kJetR, clusterPtMin_);
         auto jets = jetAnalysis->getJets(clusterPtMin_);
         if (onEvent) {
@@ -109,6 +115,21 @@ class EventGenerator {
     bool getKeepPromptLeptons() const { return keepPromptLeptons_; }
     size_t getNRemovedInvisible() const { return nRemovedInvisible_; }
     size_t getNRemovedPromptLeptons() const { return nRemovedPromptLeptons_; }
+    // final-state particles whose Pythia decay failed (always removed), total and per PDG ID
+    size_t getNRemovedUndecayed() const { return nRemovedUndecayed_; }
+    const std::map<int, size_t>& getRemovedUndecayed() const { return removedUndecayed_; }
+    // e.g. "1 (10221: 1)", or "0"
+    std::string describeRemovedUndecayed() const {
+      std::string s = std::to_string(nRemovedUndecayed_);
+      if (removedUndecayed_.empty()) return s;
+      s += " (";
+      bool first = true;
+      for (const auto& [id, n] : removedUndecayed_) {
+        s += (first ? "" : ", ") + std::to_string(id) + ": " + std::to_string(n);
+        first = false;
+      }
+      return s + ")";
+    }
     // number of failed (and retried) pythia.next() calls
     size_t getNFailedEvents() const { return nFailedEvents_; }
     // number of accepted events over all generateEvents() calls
@@ -164,6 +185,8 @@ class EventGenerator {
     bool keepPromptLeptons_ = false;
     size_t nRemovedInvisible_ = 0;
     size_t nRemovedPromptLeptons_ = 0;
+    size_t nRemovedUndecayed_ = 0;
+    std::map<int, size_t> removedUndecayed_;
     size_t nFailedEvents_ = 0;
     size_t nAcceptedEvents_ = 0;
     long seed_ = 0;

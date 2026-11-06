@@ -41,7 +41,8 @@ int run(const ArgumentParser& argParser, const std::string& commandLine) {
 
     const bool keepPromptLeptons = argParser.keepPromptLeptons();
     std::cout << "Particles clustered: visible final state; neutrinos/invisibles removed; prompt e/mu "
-              << (keepPromptLeptons ? "kept" : "removed") << std::endl;
+              << (keepPromptLeptons ? "kept" : "removed") << "; undecayed unstable particles (failed Pythia decays) removed"
+              << std::endl;
 
     // open the output first, so an unusable path fails before the generation
     JetAnalyzer jetAnalyzer(outputFilename);
@@ -78,15 +79,18 @@ int run(const ArgumentParser& argParser, const std::string& commandLine) {
     jetAnalyzer.setMetadata("cluster_pt_min", str(clusterPtMin));
     jetAnalyzer.setMetadata("selection", selection.describe());
     jetAnalyzer.setMetadata("particles", std::string("visible final state; invisibles removed; prompt e/mu ") +
-                                         (keepPromptLeptons ? "kept" : "removed"));
+                                         (keepPromptLeptons ? "kept" : "removed") +
+                                         "; undecayed unstable particles (failed Pythia decays) removed");
     jetAnalyzer.setMetadata("n_events_requested", std::to_string(nEvents));
     jetAnalyzer.setMetadata("n_events_accepted", std::to_string(eventGen.getNAcceptedEvents()));
     jetAnalyzer.setMetadata("n_failed_next", std::to_string(eventGen.getNFailedEvents()));
     jetAnalyzer.setMetadata("n_removed_invisible", std::to_string(eventGen.getNRemovedInvisible()));
     jetAnalyzer.setMetadata("n_removed_prompt_leptons", std::to_string(eventGen.getNRemovedPromptLeptons()));
+    jetAnalyzer.setMetadata("n_removed_undecayed", eventGen.describeRemovedUndecayed());
     jetAnalyzer.finish();
     std::cout << "Removed before clustering: " << eventGen.getNRemovedInvisible() << " invisible particles, "
-              << eventGen.getNRemovedPromptLeptons() << " prompt leptons" << std::endl;
+              << eventGen.getNRemovedPromptLeptons() << " prompt leptons, "
+              << eventGen.describeRemovedUndecayed() << " undecayed unstable particles (PDG ID: count)" << std::endl;
     std::cout << "Generated " << eventGen.getNAcceptedEvents() << " events ("
               << eventGen.getNFailedEvents() << " failed pythia.next() calls retried)" << std::endl;
     return 0;
