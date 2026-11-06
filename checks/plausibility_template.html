@@ -1,0 +1,403 @@
+<!-- Template for checks/plausibility_report.py: __NAME__ placeholders are filled by the script. -->
+<title>jetlib selection-seed review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (~70ch) for prose; figures break out to a wider two-up grid. */
+:root {
+  --bg: #f7f8fa; --panel: #ffffff; --fg: #15181d; --fg2: #4a515c; --muted: #737b87;
+  --rule: #dde1e7; --grid: #e9ecf0; --accent: #1f5fae; --code-bg: #eef1f5;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --good: #0f7a3d; --good-bg: #e3f3e9; --warn: #9a5b00; --warn-bg: #fbf0dc;
+  --f-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121418; --panel: #1a1d22; --fg: #eceef1; --fg2: #b9bfc8; --muted: #8b939e;
+  --rule: #2c3138; --grid: #252a30; --accent: #79a9e6; --code-bg: #22262c;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --good: #5fc98a; --good-bg: #183324; --warn: #e2a64a; --warn-bg: #352a17; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121418; --panel: #1a1d22; --fg: #eceef1; --fg2: #b9bfc8; --muted: #8b939e;
+  --rule: #2c3138; --grid: #252a30; --accent: #79a9e6; --code-bg: #22262c;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --good: #5fc98a; --good-bg: #183324; --warn: #e2a64a; --warn-bg: #352a17; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15.5px; line-height: 1.6; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.prose { max-width: 72ch; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 650; }
+h2 { font-size: 1.55rem; font-weight: 650; margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--rule); }
+h3 { font-size: 1.12rem; font-weight: 650; margin-top: 28px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+.eyebrow { font-family: var(--f-mono); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.08rem; color: var(--fg2); max-width: 70ch; margin-top: 14px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 18px; color: var(--fg2); font-size: 0.9rem; }
+.meta-line b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 24px; }
+.fact { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; min-width: 0; }
+.fact .k { font-size: 0.82rem; color: var(--muted); }
+.fact .v { font-family: var(--f-display); font-size: 1.5rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.fact .d { font-size: 0.86rem; color: var(--fg2); }
+
+ul.tight { padding-left: 1.2em; margin: 8px 0; } ul.tight li { margin: 4px 0; }
+.tbl-wrap { overflow-x: auto; margin: 14px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--fg2); font-size: 0.82rem; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.pill { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.out { background: var(--warn-bg); color: var(--warn); }
+.pill.same { background: var(--good-bg); color: var(--good); }
+.pill.pass { background: var(--good-bg); color: var(--good); }
+.pill.fail { background: var(--warn-bg); color: var(--warn); }
+
+.figs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 20px; }
+@media (max-width: 820px) { .figs { grid-template-columns: minmax(0, 1fr); } }
+figure { margin: 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 14px 12px; min-width: 0; position: relative; }
+figure .ft { font-weight: 600; font-size: 0.95rem; }
+figure .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.82rem; color: var(--fg2); margin: 6px 0 2px; }
+figure .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--c); vertical-align: middle; margin-right: 6px; }
+figure .legend span.dash::before { background: repeating-linear-gradient(90deg, var(--c) 0 5px, transparent 5px 8px); }
+figure svg { display: block; width: 100%; height: auto; overflow: visible; }
+figcaption { font-size: 0.86rem; color: var(--fg2); margin-top: 8px; }
+figcaption .verdict { color: var(--good); font-weight: 600; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--rule); border-radius: 5px; padding: 6px 9px; font-size: 0.8rem; box-shadow: 0 2px 10px rgba(0,0,0,.12); white-space: nowrap; font-variant-numeric: tabular-nums; z-index: 5; }
+.tip .r { color: var(--muted); }
+.tip i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; background: var(--c); }
+.axis text { fill: var(--muted); font-family: var(--f-body); font-size: 11px; }
+.axis line, .axis path { stroke: var(--rule); }
+.gridl { stroke: var(--grid); }
+.axlabel { fill: var(--fg2); font-size: 11.5px; font-family: var(--f-body); }
+.hit { fill: transparent; }
+.cross { stroke: var(--muted); stroke-dasharray: 3 3; }
+details { margin-top: 12px; } summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.note { border-left: 3px solid var(--warn); background: var(--warn-bg); padding: 10px 14px; border-radius: 0 5px 5px 0; margin: 16px 0; max-width: 72ch; }
+.note p { margin: 4px 0; }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">jetlib · branch <span class="mono">feature/selection-seed</span> · compared with master</div>
+  <h1>What changed on the selection-seed branch, and does the output look right?</h1>
+  <p class="lede">This page lists every change on the branch since <code>master</code> and shows the jet library before and after, from the same Pythia events. Every plot uses the tt̄ runs of <code>checks/check_output.py</code> (14 TeV, seed __SEED__, __NEVENTS__ events per run), clustered with anti-k<sub>T</sub> R = 0.4.</p>
+  <div class="meta-line">
+    <span><b>__NCOMMITS__</b> commits since master</span><span><b>__NFILES__</b> files</span><span><b>__DIFFSTAT__</b> lines</span>
+    <span>Checks: <b>__CLICHECKS__</b> CLI, <b>__PYCHECKS__</b> Python</span><span>Build <b class="mono">__BUILD__</b></span>
+  </div>
+</header>
+
+<section>
+<h2>Summary</h2>
+<div class="prose">
+<p>The branch makes the jet selection and the seed configurable. It removes neutrinos and, by default, prompt leptons before clustering, and changes the default η range to −3 < η < 3. It also fixes the remaining review findings: crashes, silent failures, memory growth, missing provenance, the Python bindings, and the build.</p>
+<p>Several changes alter what a DICE jet library contains. Each one was requested. The rest were checked to leave the tree identical for a fixed seed.</p>
+</div>
+<div class="facts">
+  <div class="fact"><div class="k">Jets written, master default</div><div class="v">__NMASTER__</div><div class="d">η > 1.7, pT > 30 GeV, neutrinos clustered</div></div>
+  <div class="fact"><div class="k">Jets written, branch default</div><div class="v">__NFINAL__</div><div class="d">−3 < η < 3, pT > 30 GeV, visible particles only</div></div>
+  <div class="fact"><div class="k">Master jets with > 90% of E in neutrinos</div><div class="v" id="f-nu">–</div><div class="d">0 on the branch</div></div>
+  <div class="fact"><div class="k">Peak memory, 4000 events</div><div class="v">__PEAKMEM__</div><div class="d">streaming instead of storing all events</div></div>
+</div>
+</section>
+
+<section>
+<h2>Changes</h2>
+<div class="prose"><p>The changes are grouped by what they do. The tag shows whether a change alters the tree for a fixed seed and the default arguments.</p></div>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Area</th><th>Change</th><th>Tree</th><th>Commits</th></tr></thead>
+<tbody>
+<tr><td>Jet selection</td><td>The hardcoded <code>eta &gt; 1.7 &amp;&amp; pt &gt; 30</code> is replaced by <code>--pt-min</code>, <code>--pt-max</code>, <code>--eta-min</code>, <code>--eta-max</code> and <code>--abs-eta</code>, all strict cuts. Inconsistent cuts are rejected. The clustering threshold is min(20 GeV, pt-min), so <code>--pt-min 10</code> works.</td><td><span class="pill same">unchanged by itself</span></td><td class="mono">3791732</td></tr>
+<tr><td>Default η range</td><td>The default is now −3 < η < 3 (|η| < 3 with <code>--abs-eta</code>) instead of η > 1.7. Setting one bound keeps the default for the other.</td><td><span class="pill out">changes output</span></td><td class="mono">fca60b9</td></tr>
+<tr><td>Particle content</td><td>Invisible particles (<code>!isVisible()</code>: neutrinos, BSM invisibles) are never clustered. Prompt e/μ, meaning those with no hadron among their ancestors, are removed unless <code>--keep-prompt-leptons</code> is given.</td><td><span class="pill out">changes output</span></td><td class="mono">8eb870e</td></tr>
+<tr><td>Seed</td><td><code>--seed</code> in [0, 9·10<sup>8</sup>] overrides the config. For 0 (the default), jetlib draws the seed itself, then prints and stores it. Pythia's own seed for 0 is time-based with 1 s resolution, so jobs started together were identical.</td><td><span class="pill out">default runs differ per job</span></td><td class="mono">a4bc542 274b738</td></tr>
+<tr><td>Output format</td><td>New branches <code>eventIndex</code> (event of the jet) and <code>jetIndex</code> (pT rank in the event). <code>jetConsituentsEta</code> is renamed to <code>jetConstituentsEta</code>. Provenance (version, command line, config text, seed, selection, counters) is stored in <code>jetlib/</code>. DICE reads <code>jetConstituentsPx/Py/Pz/PdgId</code>, which are unchanged.</td><td><span class="pill same">existing values unchanged</span></td><td class="mono">f820528 bd688fd cb19a50</td></tr>
+<tr><td>Robustness</td><td>A rejected config line, a failed <code>init()</code>, or more failed <code>next()</code> calls than <code>Main:timesAllowErrors</code> now stop the run with exit 1. Before, these gave an empty file with exit 0, or fewer events than requested. The output file is opened before generation, so a bad path fails at once instead of segfaulting at the end. Arguments are validated, exceptions are caught, <code>--help</code> exits 0, and arguments are parsed once.</td><td><span class="pill same">unchanged</span></td><td class="mono">a6eda6c b279d1a 3456646</td></tr>
+<tr><td>Memory</td><td>Events are filled into the tree as they are generated, and each event's clustering is freed afterwards. Before, every event and its ClusterSequence stayed in memory until the end.</td><td><span class="pill same">unchanged</span></td><td class="mono">e108995</td></tr>
+<tr><td>Python module</td><td>The string filter is validated when set, where before bad expressions passed all jets or crashed. Jets keep their ClusterSequence alive, so <code>constituents()</code> works after the generator is deleted. FastJet errors become readable <code>RuntimeError</code>s. <code>JetAnalysis</code> can be reused and fed particles from Python. <code>phi()</code> is in [−π, π), as in the tree.</td><td><span class="pill same">unchanged</span></td><td class="mono">6e925ce dea2140 653c0d6 3b5e1a3</td></tr>
+<tr><td>Build &amp; docs</td><td>The default config is resolved from the source tree, so it no longer depends on the working directory. CMake gains <code>FASTJET_DIR</code> and <code>JETLIB_PYTHON</code> and requests the ROOT Tree component. <code>.venv/</code> is ignored. The README covers building, running, event content (underlying event, no pileup) and the Python module.</td><td><span class="pill same">unchanged</span></td><td class="mono">c78489d 88befc6 8cf400a 6fc98b8 aab5bfa</td></tr>
+</tbody></table></div>
+
+<div class="note">
+<p><b>What users of existing jet libraries need to know.</b></p>
+<p>A new default production is not comparable to an old one. It covers −3 < η < 3 instead of η > 1.7, contains no neutrinos, and contains no prompt leptons. Pass <code>--eta-min 1.7 --eta-max 100 --keep-prompt-leptons</code> to get closer to the old selection. Neutrinos cannot be put back.</p>
+<p>Code that reads <code>jetConsituentsEta</code> needs the new name. In Python, <code>PseudoJet.phi()</code> now returns [−π, π), and <code>phi_02pi()</code> gives the old range.</p>
+</div>
+<p class="prose" style="color:var(--fg2);font-size:.9rem">Not done, by decision: the per-jet scalars stay length-1 vectors (finding 5.2), to keep the format DICE reads.</p>
+</section>
+
+<section>
+<h2>Plausibility checks</h2>
+<div class="prose"><p>The runs below share the same generated events (seed __SEED__). <b>master</b> is the unchanged master build, with the seed set through a copy of the config. <b>branch</b> is the final build with default arguments. Each caption says what to expect and what the plot shows. Hover a plot to read bin values.</p></div>
+
+<h3>Selection and particle content</h3>
+<div class="figs">
+  <figure id="fig-eta"><div class="ft">Jet η, all written jets</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> master has nothing below η = 1.7 (the hardcoded filter). The branch should be flat-topped and symmetric within −3 < η < 3, with nothing outside. <span class="verdict" id="v-eta"></span></figcaption></figure>
+  <figure id="fig-pt"><div class="ft">Jet pT in the common window 1.7 < η < 3</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> the same shape, with the branch slightly lower. Removing neutrinos and prompt leptons lowers jet energies, and jets that were mostly neutrinos disappear. <span class="verdict" id="v-pt"></span></figcaption></figure>
+  <figure id="fig-nu"><div class="ft">Fraction of jet energy carried by neutrinos (log scale)</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> the branch has every jet in the first bin, at exactly 0. Master has a peak near 1: "jets" made of a single neutrino, which DICE would shoot as invisible energy. <span class="verdict" id="v-nu"></span></figcaption></figure>
+  <figure id="fig-lep"><div class="ft">Largest single e/μ energy fraction in the jet (log scale)</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> with <code>--keep-prompt-leptons</code>, W → ℓν leptons form lepton-dominated jets, a peak near 1. The default removes them; what remains is leptons from hadron decays. <span class="verdict" id="v-lep"></span></figcaption></figure>
+  <figure id="fig-species"><div class="ft">Constituent composition, jets in 1.7 < η < 3</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> mostly photons (from π⁰) and charged pions. Neutrinos go to zero on the branch, prompt e/μ drop, and the hadron fractions rise slightly as a result. <span class="verdict" id="v-sp"></span></figcaption></figure>
+  <figure id="fig-ncon"><div class="ft">Constituents per jet, 1.7 < η < 3</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> nearly identical distributions. The branch loses the 1–2-constituent neutrino jets at the low end. <span class="verdict" id="v-ncon"></span></figcaption></figure>
+</div>
+
+<h3>Command-line options</h3>
+<div class="figs">
+  <figure id="fig-pt10"><div class="ft">Jet pT with <code>--pt-min 10</code> and with the default</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> identical above 30 GeV. With <code>--pt-min 10</code>, the region 10–30 GeV fills in, including 10–20 GeV, which the old fixed 20 GeV clustering threshold made impossible. <span class="verdict" id="v-pt10"></span></figcaption></figure>
+  <figure id="fig-abs"><div class="ft">Jet η with <code>--abs-eta --eta-min 1.7 --eta-max 2.6</code></div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> two bands, 1.7 < |η| < 2.6, mirror images of each other, and nothing in between. <span class="verdict" id="v-abs"></span></figcaption></figure>
+</div>
+
+<h3>Output bookkeeping</h3>
+<div class="figs">
+  <figure id="fig-jpe"><div class="ft">Written jets per event (from <code>eventIndex</code>)</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> tt̄ gives a broad distribution around 4 jets in |η| < 3, about six partons minus acceptance and pT losses. Before this branch, jets could not be grouped by event. <span class="verdict" id="v-jpe"></span></figcaption></figure>
+  <figure id="fig-phi"><div class="ft">Jet φ, branch default</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> flat within statistics over [−π, π). This is the convention of the tree, and now also of Python and the filter. <span class="verdict" id="v-phi"></span></figcaption></figure>
+  <figure id="fig-seed"><div class="ft">Reproducibility</div>
+    <div class="tbl-wrap"><table id="seedtbl"><thead><tr><th>Runs compared</th><th>Expected</th><th>Result</th></tr></thead><tbody></tbody></table></div>
+    <figcaption>Compares the tree contents, not file bytes (ROOT files carry timestamps). Closure: the vector sum of each jet's stored constituents reproduces the jet's pT and E to within <span class="mono" id="closure"></span>.</figcaption></figure>
+</div>
+</section>
+
+<section id="runtime">
+<h2>Runtime and memory</h2>
+<div class="prose"><p>Master and the branch build run the same events: the same seed per repetition, tt̄, with each run single-threaded. <code>checks/timing.py</code> measures the jetlib process itself inside the container. <b>branch, master selection</b> runs the branch with <code>--eta-min 1.7 --eta-max 100</code>, which approximates master's selection, so the effect of writing more jets can be told apart from everything else. Values are medians over the repetitions. <span id="t-host"></span></p></div>
+<div class="figs">
+  <figure id="fig-cpu"><div class="ft">CPU time per run (user + sys)</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> no change. Pythia's event generation dominates, and the added steps (the invisible-particle and prompt-lepton checks, writing per event) are cheap. <span class="verdict" id="v-cpu"></span></figcaption></figure>
+  <figure id="fig-mem"><div class="ft">Peak memory (max RSS) of a run</div><div class="legend"></div><div class="plot"></div>
+    <figcaption><b>Expect:</b> master keeps every event and its clustering until the end, so its memory grows with the number of events. The branch streams, so its memory stays flat. <span class="verdict" id="v-mem"></span></figcaption></figure>
+</div>
+<div class="tbl-wrap"><table id="timetbl"><thead><tr><th>Variant</th><th>Events</th><th class="num">Wall [s]</th><th class="num">CPU [s]</th><th class="num">CPU range [s]</th><th class="num">CPU / event [ms]</th><th class="num">Max RSS [MB]</th><th class="num">Jets written</th></tr></thead><tbody></tbody></table></div>
+<p class="prose" style="color:var(--fg2);font-size:.9rem">Wall time depends on the load of the shared machine. In a first round with 12 runs in parallel, the branch was up to 6% slower in wall time, but not in CPU time. The gap disappeared with 6 runs in parallel and in a separate test writing to local disk versus /ceph, so it was load, not the code.</p>
+</section>
+
+<section>
+<h2>How it was verified</h2>
+<div class="prose">
+<ul class="tight">
+<li><code>checks/check_output.py</code>: __CLICHECKS__ checks passed:
+  <ul class="tight">
+  <li>defaults equal master at commit B, before the particle-content change;</li>
+  <li>seed behaviour;</li>
+  <li>the selection options;</li>
+  <li>no neutrinos, and the prompt-lepton switch;</li>
+  <li>index branches and provenance;</li>
+  <li>13 invalid arguments, a config typo, an unwritable output, and <code>--help</code>;</li>
+  <li>the default config outside <code>build/</code>;</li>
+  <li>the default output identical to the reference build taken after Phase 2, for the same seed.</li>
+  </ul></li>
+<li><code>checks/check_bindings.py</code>: __PYCHECKS__ checks passed (container run plus <code>--verify</code> on the host):
+  <ul class="tight">
+  <li>invalid filters are rejected;</li>
+  <li>filters write exactly the jets selected by direct evaluation;</li>
+  <li>jet lifetime, the error translation, <code>JetAnalysis</code> reuse, and φ.</li>
+  </ul></li>
+<li>Refactors that should not change the output (robustness, streaming, bindings) were compared branch by branch against the earlier build for a fixed seed: identical.</li>
+<li>Builds tested: a fresh configure, <code>-DJETLIB_PYTHON=OFF</code>, and a wrong <code>FASTJET_DIR</code>, which gives a clear error.</li>
+</ul>
+<p>Details for every finding and fix are in <code>REVIEW.md</code> on the branch.</p>
+</div>
+<h3>Provenance stored in the branch output</h3>
+<div class="tbl-wrap"><table id="provtbl"><tbody></tbody></table></div>
+</section>
+
+<section>
+<h2>All commits since master</h2>
+<details><summary>Show the __NCOMMITS__ commits in order</summary>
+<div class="tbl-wrap"><table id="commits"><tbody></tbody></table></div>
+</details>
+</section>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function () {
+const D = JSON.parse(document.getElementById('data').textContent);
+const S = D.stats;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v, d = 0) => v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+const pct = (v, d = 1) => (100 * v).toFixed(d) + '%';
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function niceTicks(lo, hi, n) {
+  const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || 10 * mag;
+  const out = []; for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out;
+}
+function legend(fig, series) {
+  const L = fig.querySelector('.legend'); L.innerHTML = '';
+  series.forEach(s => { const sp = document.createElement('span'); sp.style.setProperty('--c', `var(${s.color})`); if (s.dash) sp.className = 'dash'; sp.textContent = s.name; L.appendChild(sp); });
+}
+function tipFor(fig) {
+  let t = fig.querySelector('.tip'); if (!t) { t = document.createElement('div'); t.className = 'tip'; t.hidden = true; fig.appendChild(t); } return t;
+}
+// Step-line histograms sharing one x binning.
+function hist(id, series, o) {
+  const fig = document.getElementById(id); legend(fig, series);
+  const W = 520, H = 280, m = { l: 52, r: 14, t: 10, b: 42 };
+  const edges = series[0].h.edges, nb = edges.length - 1;
+  const xlo = edges[0], xhi = edges[nb];
+  const ymaxRaw = Math.max(...series.flatMap(s => s.h.counts));
+  const log = !!o.logy;
+  const ylo = log ? 0.5 : 0, yhi = log ? Math.pow(10, Math.ceil(Math.log10(ymaxRaw * 1.5))) : ymaxRaw * 1.1;
+  const X = v => m.l + (v - xlo) / (xhi - xlo) * (W - m.l - m.r);
+  const Y = v => log ? (H - m.b) - (Math.log10(Math.max(v, ylo)) - Math.log10(ylo)) / (Math.log10(yhi) - Math.log10(ylo)) * (H - m.t - m.b)
+                     : (H - m.b) - v / yhi * (H - m.t - m.b);
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': fig.querySelector('.ft').textContent });
+  const ax = el('g', { class: 'axis' }, svg);
+  const yt = log ? [1, 10, 100, 1000, 10000, 100000].filter(v => v <= yhi) : niceTicks(0, yhi, 5);
+  yt.forEach(v => { el('line', { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), class: 'gridl' }, ax); const t = el('text', { x: m.l - 6, y: Y(v) + 4, 'text-anchor': 'end' }, ax); t.textContent = log ? (v >= 1000 ? (v / 1000) + 'k' : v) : fmt(v); });
+  const xt = o.xticks || niceTicks(xlo, xhi, 6);
+  el('line', { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b }, ax);
+  xt.forEach(v => { el('line', { x1: X(v), x2: X(v), y1: H - m.b, y2: H - m.b + 4 }, ax); const t = el('text', { x: X(v), y: H - m.b + 17, 'text-anchor': 'middle' }, ax); t.textContent = o.xfmt ? o.xfmt(v) : fmt(v, Math.abs(v) < 10 && v % 1 ? 1 : 0); });
+  const xl = el('text', { x: (m.l + W - m.r) / 2, y: H - 6, 'text-anchor': 'middle', class: 'axlabel' }, svg); xl.textContent = o.xlabel;
+  const yl = el('text', { x: 12, y: (m.t + H - m.b) / 2, 'text-anchor': 'middle', class: 'axlabel', transform: `rotate(-90 12 ${(m.t + H - m.b) / 2})` }, svg); yl.textContent = o.ylabel || 'jets per bin';
+  series.forEach(s => {
+    let d = ''; s.h.counts.forEach((c, i) => { const y = Y(log && c === 0 ? ylo : c); d += (i ? 'L' : 'M') + X(edges[i]) + ',' + y + 'H' + X(edges[i + 1]); });
+    el('path', { d, fill: 'none', stroke: `var(${s.color})`, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-dasharray': s.dash ? '6 4' : 'none' }, svg);
+  });
+  const cross = el('line', { class: 'cross', y1: m.t, y2: H - m.b, visibility: 'hidden' }, svg);
+  const tip = tipFor(fig);
+  for (let i = 0; i < nb; i++) {
+    const r = el('rect', { class: 'hit', x: X(edges[i]), y: m.t, width: Math.max(1, X(edges[i + 1]) - X(edges[i])), height: H - m.t - m.b }, svg);
+    const show = () => {
+      const cx = (X(edges[i]) + X(edges[i + 1])) / 2; cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.setAttribute('visibility', 'visible');
+      const lab = o.binfmt ? o.binfmt(edges[i], edges[i + 1]) : `${fmt(edges[i], 2)} – ${fmt(edges[i + 1], 2)}`;
+      tip.innerHTML = `<div class="r">${o.xlabel}: ${lab}</div>` + series.map(s => `<div><i style="--c:var(${s.color})"></i>${s.name}: <b>${fmt(s.h.counts[i])}</b></div>`).join('');
+      tip.hidden = false;
+      const box = svg.getBoundingClientRect(), fb = fig.getBoundingClientRect(), sc = box.width / W;
+      let left = box.left - fb.left + cx * sc + 12; if (left + tip.offsetWidth > fig.clientWidth - 6) left = box.left - fb.left + cx * sc - tip.offsetWidth - 12;
+      tip.style.left = Math.max(4, left) + 'px'; tip.style.top = (box.top - fb.top + 16) + 'px';
+    };
+    r.addEventListener('mouseenter', show); r.addEventListener('touchstart', show, { passive: true });
+  }
+  svg.addEventListener('mouseleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); });
+  fig.querySelector('.plot').appendChild(svg);
+}
+// Horizontal grouped bars (categories x series)
+function hbars(id, cats, series, o) {
+  const fig = document.getElementById(id); legend(fig, series);
+  const W = 520, rowH = o.rowH || 30, m = { l: 64, r: 50, t: 4, b: 30 }, H = m.t + m.b + cats.length * rowH;
+  const vmax = o.max, X = v => m.l + v / vmax * (W - m.l - m.r);
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': fig.querySelector('.ft').textContent });
+  const ax = el('g', { class: 'axis' }, svg);
+  niceTicks(0, vmax, 5).forEach(v => { el('line', { x1: X(v), x2: X(v), y1: m.t, y2: H - m.b, class: 'gridl' }, ax); const t = el('text', { x: X(v), y: H - m.b + 16, 'text-anchor': 'middle' }, ax); t.textContent = o.tfmt(v); });
+  const tip = tipFor(fig);
+  const bh = (rowH - 8) / series.length - 2;
+  cats.forEach((c, ci) => {
+    const y0 = m.t + ci * rowH + 4;
+    const t = el('text', { x: m.l - 8, y: y0 + rowH / 2, 'text-anchor': 'end', class: 'axlabel' }, svg); t.textContent = c;
+    series.forEach((s, si) => {
+      const v = s.vals[ci], y = y0 + si * (bh + 2), w = Math.max(0, X(v) - m.l);
+      if (w > 0) el('path', { d: `M${m.l},${y}H${m.l + Math.max(0, w - 3)}a3,3 0 0 1 3,3V${y + bh - 3}a3,3 0 0 1 -3,3H${m.l}Z`, fill: `var(${s.color})` }, svg);
+    });
+    const vt = el('text', { x: X(Math.max(...series.map(s => s.vals[ci]))) + 6, y: y0 + rowH / 2, class: 'axlabel' }, svg); vt.textContent = o.lab ? o.lab(ci) : '';
+    const hit = el('rect', { class: 'hit', x: 0, y: y0 - 4, width: W, height: rowH }, svg);
+    const show = () => {
+      tip.innerHTML = `<div class="r">${c}</div>` + series.map(s => `<div><i style="--c:var(${s.color})"></i>${s.name}: <b>${o.vfmt(s.vals[ci])}</b></div>`).join('');
+      tip.hidden = false; const box = svg.getBoundingClientRect(), fb = fig.getBoundingClientRect(), sc = box.width / W;
+      tip.style.left = Math.min(fig.clientWidth - tip.offsetWidth - 6, box.left - fb.left + X(vmax * 0.55) * sc) + 'px'; tip.style.top = (box.top - fb.top + (y0 + rowH) * sc) + 'px';
+    };
+    hit.addEventListener('mouseenter', show); hit.addEventListener('touchstart', show, { passive: true });
+  });
+  svg.addEventListener('mouseleave', () => { tip.hidden = true; });
+  fig.querySelector('.plot').appendChild(svg);
+}
+const sum = a => a.reduce((x, y) => x + y, 0);
+const M = { name: 'master', color: '--s2' }, B = { name: 'branch', color: '--s1' };
+
+document.getElementById('f-nu').textContent = pct(S.nu_master_jets_gt90);
+
+hist('fig-eta', [{ ...M, h: D.eta.master }, { ...B, h: D.eta.final }], { xlabel: 'jet η', xticks: [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5] });
+document.getElementById('v-eta').textContent = `Master: ${fmt(S.n_master)} jets, smallest η ${S.master_eta_min.toFixed(3)}. Branch: ${fmt(S.n_final)} jets in ${S.final_etamin.toFixed(3)} … ${S.final_etamax.toFixed(3)}.`;
+
+hist('fig-pt', [{ ...M, h: D.pt_fwd.master }, { ...B, h: D.pt_fwd.final }], { xlabel: 'jet pT [GeV]', logy: true, binfmt: (a, b) => `${a}–${b} GeV` });
+document.getElementById('v-pt').textContent = `${fmt(S.fwd_master)} → ${fmt(S.fwd_final)} jets in the window (−${pct(1 - S.fwd_final / S.fwd_master, 0)}).`;
+
+hist('fig-nu', [{ ...M, h: D.nufrac.master }, { ...B, h: D.nufrac.final, dash: true }], { xlabel: 'E(ν) / E(jet)', logy: true });
+document.getElementById('v-nu').textContent = `Master: ${pct(S.nu_master_any)} of jets contain a neutrino, ${pct(S.nu_master_jets_gt50)} carry more than half of their energy in neutrinos, ${pct(S.nu_master_jets_gt90)} more than 90%. Branch: none.`;
+
+hist('fig-lep', [{ name: '--keep-prompt-leptons', color: '--s3', h: D.lepfrac.keep }, { name: 'branch default', color: '--s1', h: D.lepfrac.default }], { xlabel: 'max E(e/μ) / E(jet)', logy: true });
+document.getElementById('v-lep').textContent = `Jets with one e/μ above 50% of E: ${pct(S.lep50_keep, 2)} with --keep-prompt-leptons, ${pct(S.lep50_default, 2)} by default.`;
+
+const sp = Object.keys(D.species.master).filter(k => k !== 'other');
+hbars('fig-species', sp, [{ ...M, vals: sp.map(k => D.species.master[k]) }, { ...B, vals: sp.map(k => D.species.final[k]) }],
+  { max: 0.5, tfmt: v => (v * 100).toFixed(0) + '%', vfmt: v => pct(v, 2), lab: i => pct(D.species.final[sp[i]], 1) });
+document.getElementById('v-sp').textContent = `Neutrinos ${pct(D.species.master['ν'], 1)} → 0 of ${fmt(D.species.nfinal)} constituents. Labels show the branch fraction.`;
+
+hist('fig-ncon', [{ ...M, h: D.ncon.master }, { ...B, h: D.ncon.final }], { xlabel: 'constituents per jet', binfmt: (a, b) => `${a}–${b - 1}` });
+const nc = D.ncon; const low = h => h.counts[0];
+document.getElementById('v-ncon').textContent = `Jets with 0–1 constituents: ${low(nc.master)} (master) → ${low(nc.final)} (branch).`;
+
+hist('fig-pt10', [{ name: '--pt-min 10', color: '--s3', h: D.pt10.ptmin10 }, { name: 'default (pt > 30)', color: '--s1', h: D.pt10.default }], { xlabel: 'jet pT [GeV]', binfmt: (a, b) => `${a}–${b} GeV` });
+document.getElementById('v-pt10').textContent = `${fmt(S.p10_in_10_20)} jets between 10 and 20 GeV; lowest pT ${S.p10_min.toFixed(2)} GeV. Default: lowest pT ${S.final_ptmin.toFixed(2)} GeV.`;
+
+hist('fig-abs', [{ name: '|η| window', color: '--s1', h: D.abseta.abseta }], { xlabel: 'jet η', xticks: [-3, -2.6, -1.7, 0, 1.7, 2.6, 3], xfmt: v => v });
+document.getElementById('v-abs').textContent = `${fmt(S.abs_pos)} jets at η > 0, ${fmt(S.abs_neg)} at η < 0 (difference well inside 3√n); |η| from ${S.abs_min.toFixed(3)} to ${S.abs_max.toFixed(3)}.`;
+
+hist('fig-jpe', [{ name: 'branch default', color: '--s1', h: D.jpe.final }], { xlabel: 'jets per event', ylabel: 'events', xticks: [0, 2, 4, 6, 8, 10, 12, 14], binfmt: (a, b) => `${Math.round((a + b) / 2)}` });
+const jc = D.jpe.final.counts, mean = sum(jc.map((c, i) => c * i)) / sum(jc);
+document.getElementById('v-jpe').textContent = `Mean ${mean.toFixed(2)} jets per event over ${fmt(sum(jc))} events. The sum, ${fmt(sum(jc.map((c, i) => c * i)))}, equals the jets written.`;
+
+hist('fig-phi', [{ name: 'branch default', color: '--s1', h: D.phi.final }], { xlabel: 'jet φ [rad]', xticks: [-3, -2, -1, 0, 1, 2, 3] });
+const pc = D.phi.final.counts, pm = sum(pc) / pc.length, chi2 = sum(pc.map(c => (c - pm) ** 2 / pm));
+document.getElementById('v-phi').textContent = `χ² for flat = ${chi2.toFixed(1)} for ${pc.length - 1} degrees of freedom.`;
+
+if (D.timing) {
+  const T = D.timing, sizes = [...new Set(T.summary.map(s => s.n))].sort((a, b) => a - b);
+  const VN = { master: ['master', '--s2'], branch: ['branch', '--s1'], branch_master_sel: ['branch, master selection', '--s3'] };
+  const vars = Object.keys(VN).filter(v => T.summary.some(s => s.variant === v));
+  const get = (v, n) => T.summary.find(s => s.variant === v && s.n === n);
+  const cats = sizes.map(n => fmt(n) + ' events');
+  const ser = key => vars.map(v => ({ name: VN[v][0], color: VN[v][1], vals: sizes.map(n => (get(v, n) || {})[key] || 0) }));
+  const top = key => Math.max(...T.summary.map(s => s[key]));
+  const step = v => v > 600 ? 250 : v > 60 ? 20 : 10;
+  const rowH = 14 + vars.length * 11;
+  hbars('fig-cpu', cats, ser('cpu'), { rowH, max: Math.ceil(top('cpu') * 1.15 / step(top('cpu'))) * step(top('cpu')), tfmt: v => v + ' s', vfmt: v => v.toFixed(1) + ' s',
+    lab: i => `${(1000 * get('master', sizes[i]).cpu / sizes[i]).toFixed(1)} → ${(1000 * get('branch', sizes[i]).cpu / sizes[i]).toFixed(1)} ms/event` });
+  hbars('fig-mem', cats, ser('maxrss_mb'), { rowH, max: Math.ceil(top('maxrss_mb') * 1.15 / 250) * 250, tfmt: v => v + ' MB', vfmt: v => v.toFixed(0) + ' MB',
+    lab: i => `${get('master', sizes[i]).maxrss_mb.toFixed(0)} → ${get('branch', sizes[i]).maxrss_mb.toFixed(0)} MB` });
+  const nmax = sizes[sizes.length - 1], cm = get('master', nmax), cb = get('branch', nmax);
+  const dc = 100 * (cb.cpu / cm.cpu - 1);
+  document.getElementById('v-cpu').textContent = `At ${fmt(nmax)} events: ${cm.cpu.toFixed(1)} s (master) vs ${cb.cpu.toFixed(1)} s (branch), ${dc >= 0 ? '+' : ''}${dc.toFixed(1)}%, while the branch writes ${(cb.n_jets / cm.n_jets).toFixed(1)}× as many jets.`;
+  const m0 = get('master', sizes[0]), b0 = get('branch', sizes[0]);
+  document.getElementById('v-mem').textContent = `Master grows from ${m0.maxrss_mb.toFixed(0)} to ${cm.maxrss_mb.toFixed(0)} MB between ${fmt(sizes[0])} and ${fmt(nmax)} events; the branch stays between ${Math.min(...sizes.map(n => get('branch', n).maxrss_mb)).toFixed(0)} and ${Math.max(...sizes.map(n => get('branch', n).maxrss_mb)).toFixed(0)} MB.`;
+  document.getElementById('t-host').textContent = `Machine: ${T.host.cpu}, shared, ${T.jobs} runs in parallel.`;
+  document.querySelector('#timetbl tbody').innerHTML = sizes.flatMap(n => vars.map(v => { const s = get(v, n); return `<tr><td>${VN[v][0]}</td><td class="num">${fmt(n)}</td><td class="num">${s.wall.toFixed(1)}</td><td class="num">${s.cpu.toFixed(1)}</td><td class="num">${s.cpu_min.toFixed(1)}–${s.cpu_max.toFixed(1)}</td><td class="num">${(1000 * s.cpu / n).toFixed(1)}</td><td class="num">${s.maxrss_mb.toFixed(0)}</td><td class="num">${fmt(s.n_jets)}</td></tr>`; })).join('');
+} else {
+  document.getElementById('runtime').hidden = true;
+}
+
+const ok = b => `<span class="pill ${b ? 'pass' : 'fail'}">${b ? 'as expected' : 'unexpected'}</span>`;
+document.querySelector('#seedtbl tbody').innerHTML = [
+  [`master vs commit B, seed ${S.seed} (before particle change)`, 'identical', S.master_eq_b === true],
+  [`branch --seed ${S.seed}, run twice`, 'identical', S.seed_same === true],
+  [`branch --seed 0 twice, started together (drew ${S.seed0a} and ${S.seed0b})`, 'different', S.seed0_same === false],
+  [`--seed 0 run vs rerun with its recorded seed ${S.seed0a}`, 'identical', S.repro_same === true],
+].map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${ok(r[2])}</td></tr>`).join('');
+document.getElementById('closure').textContent = Math.max(...D.closure).toExponential(1);
+
+const meta = S.meta;
+document.querySelector('#provtbl tbody').innerHTML = Object.keys(meta).map(k => `<tr><td class="mono">jetlib/${k}</td><td class="mono">${String(meta[k]).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</td></tr>`).join('');
+
+const commits = __COMMITS__;
+document.querySelector('#commits tbody').innerHTML = commits.map(c => `<tr><td class="mono">${c[0]}</td><td>${c[1].replace(/&/g, '&amp;').replace(/</g, '&lt;')}</td></tr>`).join('');
+})();
+</script>
