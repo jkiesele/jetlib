@@ -51,6 +51,10 @@ int run(const ArgumentParser& argParser, const std::string& commandLine) {
     eventGen.setKeepPromptLeptons(keepPromptLeptons);
     eventGen.setClusterPtMin(clusterPtMin);
     eventGen.setSeed(seed);
+    const bool tauJets = argParser.tauJets();
+    eventGen.setFindTaus(tauJets);
+    if (tauJets) std::cout << "Tau mode: only jets matched to a generator tau (deltaR < "
+                           << JetAnalyzer::kTauMatchDR << ") are written, with jetTau* truth branches" << std::endl;
     eventGen.initialize();
     const long effectiveSeed = eventGen.getSeed();
     std::cout << "Random seed: " << effectiveSeed;
@@ -60,10 +64,11 @@ int run(const ArgumentParser& argParser, const std::string& commandLine) {
     // Stream: each event is selected and written while its ClusterSequence is alive,
     // then freed, so memory does not grow with the number of events.
     jetAnalyzer.setSelection(selection);
+    jetAnalyzer.setTauJets(tauJets);
     jetAnalyzer.begin();
     eventGen.generateEvents(nEvents, [&](const std::vector<fastjet::PseudoJet>& jets, size_t iEvent) {
         if (debug) printEventInfo(jets, iEvent);
-        jetAnalyzer.fill(jets, static_cast<long long>(iEvent));
+        jetAnalyzer.fill(jets, static_cast<long long>(iEvent), tauJets ? &eventGen.getTaus() : nullptr);
     });
     // provenance, stored in the "jetlib" directory of the output file
     auto str = [](double v) { std::ostringstream s; s << v; return s.str(); };
@@ -81,6 +86,8 @@ int run(const ArgumentParser& argParser, const std::string& commandLine) {
     jetAnalyzer.setMetadata("particles", std::string("visible final state; invisibles removed; prompt e/mu ") +
                                          (keepPromptLeptons ? "kept" : "removed") +
                                          "; undecayed unstable particles (failed Pythia decays) removed");
+    if (tauJets) jetAnalyzer.setMetadata("tau_jets", "only jets with deltaR(jet, visible generator tau) < " +
+                                         str(JetAnalyzer::kTauMatchDR) + " written; jetTau* branches");
     jetAnalyzer.setMetadata("n_events_requested", std::to_string(nEvents));
     jetAnalyzer.setMetadata("n_events_accepted", std::to_string(eventGen.getNAcceptedEvents()));
     jetAnalyzer.setMetadata("n_failed_next", std::to_string(eventGen.getNFailedEvents()));

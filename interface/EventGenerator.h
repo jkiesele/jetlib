@@ -4,6 +4,7 @@
 #include "Pythia8/Pythia.h"
 #include "JetAnalysis.h"
 #include "JetCollection.h"
+#include "TauTruth.h"
 #include <fstream>
 #include <functional>
 #include <map>
@@ -91,6 +92,7 @@ class EventGenerator {
           removedUndecayed_[id] += n;
           nRemovedUndecayed_ += n;
         }
+        if (findTaus_) taus_ = findTaus(event);
         jetAnalysis->clusterJets(kJetR, clusterPtMin_);
         auto jets = jetAnalysis->getJets(clusterPtMin_);
         if (onEvent) {
@@ -100,6 +102,11 @@ class EventGenerator {
         }
       }
     }
+
+    // With setFindTaus(true), the generator taus of each event are available via getTaus()
+    // during the event callback (see TauTruth.h).
+    void setFindTaus(bool on) { findTaus_ = on; }
+    const std::vector<TauTruth>& getTaus() const { return taus_; }
 
     // Minimum jet pT kept after clustering (default 20 GeV). Must not exceed the
     // pT threshold of the jet selection applied later.
@@ -183,6 +190,8 @@ class EventGenerator {
     double clusterPtMin_ = 20.0;
     bool hasSeed_ = false;
     bool keepPromptLeptons_ = false;
+    bool findTaus_ = false;
+    std::vector<TauTruth> taus_;
     size_t nRemovedInvisible_ = 0;
     size_t nRemovedPromptLeptons_ = 0;
     size_t nRemovedUndecayed_ = 0;

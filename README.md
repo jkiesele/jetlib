@@ -29,7 +29,7 @@ CMake options:
 ./jetlib -c ../config/ttbar.cfg -f output.root -n 1000
 ```
 
-`-c` is the Pythia config file. Every non-empty line that does not start with `#` is passed to Pythia, and a line Pythia does not accept stops the run. Without `-c`, `config/ttbar.cfg` of the source tree jetlib was built from is used. The config file in use is printed at startup. The repository has `config/ttbar.cfg` (tt̄), `config/zprime.cfg` (300 GeV Z′ → u, d, s, c quarks) and `config/tau.cfg` (Z → ττ). `-n` is the number of events, `-f` the output file, `-d` prints every event. `./jetlib --help` lists all options.
+`-c` is the Pythia config file. Every non-empty line that does not start with `#` is passed to Pythia, and a line Pythia does not accept stops the run. Without `-c`, `config/ttbar.cfg` of the source tree jetlib was built from is used. The config file in use is printed at startup. The repository has `config/ttbar.cfg` (tt̄), `config/zprime.cfg` (300 GeV Z′ → u, d, s, c quarks) `config/tau.cfg` (Z → ττ) and `config/higgs_tautau.cfg` (gg → H → ττ). `-n` is the number of events, `-f` the output file, `-d` prints every event. `./jetlib --help` lists all options.
 
 ## Particles that are clustered
 
@@ -84,6 +84,27 @@ One jet per entry of the `JetTree` tree. Per-jet kinematics: `jetPt`, `jetEta`, 
 Provenance is stored as `TNamed` objects (the value is the title) in the directory `jetlib/`: `jetlib_version` (git describe of the build), `command_line`, `config_file`, `config` (full text), `seed`, `pythia_version`, `fastjet_version`, `jet_algorithm`, `cluster_pt_min`, `selection`, `particles`, and the counters `n_events_requested`, `n_events_accepted`, `n_failed_next`, `n_removed_invisible`, `n_removed_prompt_leptons`, `n_removed_undecayed` (total, then counts per PDG ID) and `n_jets_written`. With uproot: `uproot.open(f)["jetlib/seed"].member("fTitle")`.
 
 Jets are written event by event, so consecutive entries are correlated. Shuffle them, or sample by `eventIndex`, if that matters.
+
+## Tau jets
+
+With `--tau-jets`, only jets matched to a generator τ are written, and the truth branches below are added. Use it together with `--keep-prompt-leptons`, otherwise the e/μ of leptonic τ decays are removed before clustering and leptonic τ never form a jet:
+
+```bash
+./jetlib -c ../config/higgs_tautau.cfg -f taus.root -n 1000 --pt-min 20 --pt-max 200 --tau-jets --keep-prompt-leptons
+```
+
+- **Taus:** the last copy of each prompt τ (no hadron among its ancestors; τ from D_s or B decays are ignored).
+- **Visible momentum:** the sum of the τ's visible final-state descendants (no neutrinos).
+- **Matching:** a selected jet is matched to the τ whose visible momentum is closest in ΔR, if ΔR < 0.4. If one τ matches several jets, only the closest jet is kept.
+- **Branches (one value per jet):**
+  - `jetTauPdgId` (±15)
+  - `jetTauDecayMode`: −11 or −13 for τ → e/μ νν; for hadronic decays 5·(nProngs − 1) + nπ⁰, so 0 = πν, 1 = ππ⁰ν, 2 = π2π⁰ν, 10 = 3πν, 11 = 3ππ⁰ν
+  - `jetTauNProngs` (π±, K±) and `jetTauNPi0`, counted through intermediate resonances but not through K⁰ decays
+  - `jetTauDR`
+  - `jetTauVisPt/Eta/Phi/E` (visible τ)
+  - `jetTauPt/Eta/Phi/E` (full τ)
+
+`config/higgs_tautau.cfg` is gg → H → ττ (m_H = 125 GeV) with Pythia's τ decays, including the τ spin correlations.
 
 ## Random seed
 

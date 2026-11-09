@@ -5,6 +5,7 @@
 #include "TFile.h"
 #include "JetCollection.h"
 #include "JetSelection.h"
+#include "TauTruth.h"
 #include "TTree.h"
 #include "TDirectory.h"
 #include <string>
@@ -32,6 +33,16 @@ class JetAnalyzer {
     // one event, finish() writes the file. analyze() does all three for a full collection.
     void begin();
     void fill(const std::vector<fastjet::PseudoJet>& jets, long long eventIndex);
+    // Tau mode (setTauJets(true) before begin()): fill() needs the generator taus of the event,
+    // only jets matched to a tau (deltaR(jet, visible tau) < kTauMatchDR) are written, and
+    // the jetTau* truth branches are added.
+    void fill(const std::vector<fastjet::PseudoJet>& jets, long long eventIndex, const std::vector<TauTruth>* taus);
+    static constexpr double kTauMatchDR = 0.4;
+    void setTauJets(bool on) {
+      if (tree_) throw std::logic_error("JetAnalyzer::setTauJets must be called before begin()");
+      tauJets_ = on;
+    }
+    bool getTauJets() const { return tauJets_; }
     void finish();
     // Provenance: stored by finish() as TNamed objects (name, title = value) in the
     // directory "jetlib" of the output file, together with n_jets_written.
@@ -64,6 +75,11 @@ class JetAnalyzer {
     std::vector<int> jetConstituentsPdgId_;
     Long64_t eventIndex_ = 0;   // index of the accepted event in this run
     Int_t jetIndex_ = 0;        // pT rank of the jet among the selected jets of its event
+    // tau mode only
+    bool tauJets_ = false;
+    Int_t tauPdgId_ = 0, tauDecayMode_ = 0, tauNProngs_ = 0, tauNPi0_ = 0;
+    Double_t tauDR_ = 0, tauVisPt_ = 0, tauVisEta_ = 0, tauVisPhi_ = 0, tauVisE_ = 0;
+    Double_t tauPt_ = 0, tauEta_ = 0, tauPhi_ = 0, tauE_ = 0;
 
     void setBranches(TTree* tree);
 

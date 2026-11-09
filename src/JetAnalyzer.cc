@@ -24,6 +24,22 @@ void JetAnalyzer::setBranches(TTree* tree) {
     // event bookkeeping (plain scalars)
     tree->Branch("eventIndex", &eventIndex_, "eventIndex/L");
     tree->Branch("jetIndex", &jetIndex_, "jetIndex/I");
+    if (tauJets_) {
+        // generator tau matched to the jet (tau mode only)
+        tree->Branch("jetTauPdgId", &tauPdgId_, "jetTauPdgId/I");
+        tree->Branch("jetTauDecayMode", &tauDecayMode_, "jetTauDecayMode/I");
+        tree->Branch("jetTauNProngs", &tauNProngs_, "jetTauNProngs/I");
+        tree->Branch("jetTauNPi0", &tauNPi0_, "jetTauNPi0/I");
+        tree->Branch("jetTauDR", &tauDR_, "jetTauDR/D");
+        tree->Branch("jetTauVisPt", &tauVisPt_, "jetTauVisPt/D");
+        tree->Branch("jetTauVisEta", &tauVisEta_, "jetTauVisEta/D");
+        tree->Branch("jetTauVisPhi", &tauVisPhi_, "jetTauVisPhi/D");
+        tree->Branch("jetTauVisE", &tauVisE_, "jetTauVisE/D");
+        tree->Branch("jetTauPt", &tauPt_, "jetTauPt/D");
+        tree->Branch("jetTauEta", &tauEta_, "jetTauEta/D");
+        tree->Branch("jetTauPhi", &tauPhi_, "jetTauPhi/D");
+        tree->Branch("jetTauE", &tauE_, "jetTauE/D");
+    }
 }
 
 namespace {
@@ -171,12 +187,39 @@ void JetAnalyzer::begin() {
 }
 
 void JetAnalyzer::fill(const std::vector<fastjet::PseudoJet>& jets, long long eventIndex) {
+    fill(jets, eventIndex, nullptr);
+}
+
+void JetAnalyzer::fill(const std::vector<fastjet::PseudoJet>& jets, long long eventIndex,
+                       const std::vector<TauTruth>* taus) {
     if (!tree_) throw std::logic_error("JetAnalyzer::fill called before begin()");
+    if (tauJets_ && !taus) throw std::logic_error("JetAnalyzer::fill: tau mode needs the generator taus");
     // Selected jets keep their clustering order in the tree; jetIndex is their pT rank
     // among the selected jets of this event (0 = hardest).
     std::vector<size_t> selected;
-    for (size_t i = 0; i < jets.size(); ++i)
-        if (passesFilter(jets[i])) selected.push_back(i);
+    // tau mode: index of the matched tau per jet (-1 = none) and the deltaR
+    std::vector<int> tauIdx(jets.size(), -1);
+    std::vector<double> tauDR(jets.size(), -1);
+    for (size_t i = 0; i < jets.size(); ++i) {
+        if (!passesFilter(jets[i])) continue;
+        if (tauJets_) {
+            tauIdx[i] = matchTau(jets[i], *taus, kTauMatchDR, tauDR[i]);
+            if (tauIdx[i] < 0) continue;
+        }
+        selected.push_back(i);
+    }
+    if (tauJets_) {
+        // one jet per tau: if a tau's decay products form several selected jets, keep the closest
+        std::vector<size_t> unique;
+        for (size_t i : selected) {
+            bool closest = true;
+            for (size_t j : selected)
+                if (j != i && tauIdx[j] == tauIdx[i] && (tauDR[j] < tauDR[i] || (tauDR[j] == tauDR[i] && j < i)))
+                    closest = false;
+            if (closest) unique.push_back(i);
+        }
+        selected.swap(unique);
+    }
     std::vector<size_t> byPt(selected);
     std::stable_sort(byPt.begin(), byPt.end(),
                      [&](size_t a, size_t b) { return jets[a].pt() > jets[b].pt(); });
@@ -188,6 +231,13 @@ void JetAnalyzer::fill(const std::vector<fastjet::PseudoJet>& jets, long long ev
         const auto& jet = jets[i];
         eventIndex_ = eventIndex;
         jetIndex_ = rank[i];
+        if (tauJets_) {
+            const TauTruth& t = (*taus)[tauIdx[i]];
+            tauPdgId_ = t.pdgId; tauDecayMode_ = t.decayMode; tauNProngs_ = t.nProngs; tauNPi0_ = t.nPi0;
+            tauDR_ = tauDR[i];
+            tauVisPt_ = t.visP4.pt(); tauVisEta_ = t.visP4.eta(); tauVisPhi_ = t.visP4.phi_std(); tauVisE_ = t.visP4.e();
+            tauPt_ = t.p4.pt(); tauEta_ = t.p4.eta(); tauPhi_ = t.p4.phi_std(); tauE_ = t.p4.e();
+        }
 
         jetPt_.push_back(jet.pt());
         jetEta_.push_back(jet.eta());

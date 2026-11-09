@@ -90,7 +90,8 @@ PYBIND11_MODULE(jetlibpy, m) {
         .def(pybind11::init<std::string>(), pybind11::arg("outputFilename") = "jet_analysis.root")
         .def("analyze", &JetAnalyzer::analyze)
         .def("begin", &JetAnalyzer::begin)
-        .def("fill", &JetAnalyzer::fill, pybind11::arg("jets"), pybind11::arg("eventIndex"))
+        .def("fill", pybind11::overload_cast<const std::vector<fastjet::PseudoJet>&, long long>(&JetAnalyzer::fill),
+             pybind11::arg("jets"), pybind11::arg("eventIndex"))
         .def("finish", &JetAnalyzer::finish)
         .def("setMetadata", &JetAnalyzer::setMetadata, pybind11::arg("name"), pybind11::arg("value"))
         .def("setFilter", &JetAnalyzer::setFilter)
