@@ -29,7 +29,7 @@ CMake options:
 ./jetlib -c ../config/ttbar.cfg -f output.root -n 1000
 ```
 
-`-c` is the Pythia config file. Every non-empty line that does not start with `#` is passed to Pythia, and a line Pythia does not accept stops the run. Without `-c`, `config/ttbar.cfg` of the source tree jetlib was built from is used. The config file in use is printed at startup. The repository has `config/ttbar.cfg` (tt̄), `config/zprime.cfg` (300 GeV Z′ → u, d, s, c quarks) `config/tau.cfg` (Z → ττ) and `config/higgs_tautau.cfg` (gg → H → ττ). `-n` is the number of events, `-f` the output file, `-d` prints every event. `./jetlib --help` lists all options.
+`-c` is the Pythia config file. Every non-empty line that does not start with `#` is passed to Pythia, and a line Pythia does not accept stops the run. Without `-c`, `config/ttbar.cfg` of the source tree jetlib was built from is used. The config file in use is printed at startup. The repository has `config/ttbar.cfg` (tt̄), `config/zprime.cfg` (300 GeV Z′ → u, d, s, c quarks), `config/tau.cfg` (Z → ττ), `config/higgs_tautau.cfg` (gg → H → ττ) and `config/qcd.cfg` (QCD 2→2 dijets, `HardQCD:all`, p̂T > 15 GeV; the p̂T spectrum is flattened with `PhaseSpace:bias2Selection`, and because jetlib stores no event weights the jet pT spectrum is not physical). `-n` is the number of events, `-f` the output file, `-d` prints every event. `./jetlib --help` lists all options.
 
 ## Particles that are clustered
 
