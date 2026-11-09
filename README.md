@@ -29,7 +29,7 @@ CMake options:
 ./jetlib -c ../config/ttbar.cfg -f output.root -n 1000
 ```
 
-`-c` is the Pythia config file. Every non-empty line that does not start with `#` is passed to Pythia, and a line Pythia does not accept stops the run. Without `-c`, `config/ttbar.cfg` of the source tree jetlib was built from is used. The config file in use is printed at startup. The repository has `config/ttbar.cfg` (tt̄), `config/zprime.cfg` (300 GeV Z′ → u, d, s, c quarks), `config/tau.cfg` (Z → ττ) and `config/qcd.cfg` (QCD 2→2 dijets, `HardQCD:all`, p̂T > 15 GeV; the p̂T spectrum is flattened with `PhaseSpace:bias2Selection`, and because jetlib stores no event weights the jet pT spectrum is not physical). `-n` is the number of events, `-f` the output file, `-d` prints every event. `./jetlib --help` lists all options.
+`-c` is the Pythia config file. Every non-empty line that does not start with `#` is passed to Pythia, and a line Pythia does not accept stops the run. Without `-c`, `config/ttbar.cfg` of the source tree jetlib was built from is used. The config file in use is printed at startup. The repository has `config/ttbar.cfg` (tt̄), `config/zprime.cfg` (300 GeV Z′ → u, d, s, c quarks), `config/tau.cfg` (Z → ττ), `config/higgs_tautau.cfg` (gg → H → ττ) and `config/qcd.cfg` (QCD 2→2 dijets, `HardQCD:all`, p̂T > 15 GeV; the p̂T spectrum is flattened with `PhaseSpace:bias2Selection`, and because jetlib stores no event weights the jet pT spectrum is not physical). `-n` is the number of events, `-f` the output file, `-d` prints every event. `./jetlib --help` lists all options.
 
 ## Particles that are clustered
 
@@ -37,8 +37,9 @@ Only visible final-state particles enter the jet clustering:
 
 - Neutrinos and other invisible particles (Pythia `isVisible() == false`) are always removed.
 - Prompt leptons are removed by default. These are final-state electrons and muons without a hadron among their ancestors, for example from W, Z or τ decays. Leptons from hadron decays (e.g. semileptonic b decays) stay in the jets. Use `--keep-prompt-leptons` to cluster prompt leptons too.
+- Undecayed unstable particles are always removed. Rarely, a Pythia decay fails (`PYTHIA Error in ParticleDecays::decay: failed to find workable decay channel`) and the particle stays in the final state, e.g. an f₀(1370) (PDG 10221) whose mass was drawn below the thresholds of most of its decay channels. Detector simulations such as Geant4 do not know these particles. jetlib removes every final-state particle that Pythia should have decayed (`mayDecay()` and a decay table). The jets therefore contain only particles that are stable in Pythia's default settings (γ, e, μ, π±, K±, K⁰_L, p, n and antiparticles). Caveat: if the config leaves particles undecayed on purpose (`ParticleDecays:limitTau0`, `limitTau`, `limitRadius`, `limitCylinder`, or `HadronLevel:Decay = off`), e.g. K⁰_S or Λ, these are removed as well. The check is `checks/check_undecayed.py`.
 
-The numbers of removed particles are printed at the end of the run. In Python: `EventGenerator.setKeepPromptLeptons(True)`.
+The numbers of removed particles are printed at the end of the run (undecayed particles per PDG ID). In Python: `EventGenerator.setKeepPromptLeptons(True)`, `getNRemovedUndecayed()`, `getRemovedUndecayed()`.
 
 ## Event content (underlying event, pileup)
 
@@ -80,9 +81,30 @@ One jet per entry of the `JetTree` tree. Per-jet kinematics: `jetPt`, `jetEta`, 
 - `eventIndex`: index of the generated event in this run (0-based). Jets with the same `eventIndex` come from the same Pythia event.
 - `jetIndex`: pT rank of the jet among the selected jets of its event (0 = hardest).
 
-Provenance is stored as `TNamed` objects (the value is the title) in the directory `jetlib/`: `jetlib_version` (git describe of the build), `command_line`, `config_file`, `config` (full text), `seed`, `pythia_version`, `fastjet_version`, `jet_algorithm`, `cluster_pt_min`, `selection`, `particles`, and the counters `n_events_requested`, `n_events_accepted`, `n_failed_next`, `n_removed_invisible`, `n_removed_prompt_leptons` and `n_jets_written`. With uproot: `uproot.open(f)["jetlib/seed"].member("fTitle")`.
+Provenance is stored as `TNamed` objects (the value is the title) in the directory `jetlib/`: `jetlib_version` (git describe of the build), `command_line`, `config_file`, `config` (full text), `seed`, `pythia_version`, `fastjet_version`, `jet_algorithm`, `cluster_pt_min`, `selection`, `particles`, and the counters `n_events_requested`, `n_events_accepted`, `n_failed_next`, `n_removed_invisible`, `n_removed_prompt_leptons`, `n_removed_undecayed` (total, then counts per PDG ID) and `n_jets_written`. With uproot: `uproot.open(f)["jetlib/seed"].member("fTitle")`.
 
 Jets are written event by event, so consecutive entries are correlated. Shuffle them, or sample by `eventIndex`, if that matters.
+
+## Tau jets
+
+With `--tau-jets`, only jets matched to a generator τ are written, and the truth branches below are added. Use it together with `--keep-prompt-leptons`, otherwise the e/μ of leptonic τ decays are removed before clustering and leptonic τ never form a jet:
+
+```bash
+./jetlib -c ../config/higgs_tautau.cfg -f taus.root -n 1000 --pt-min 20 --pt-max 200 --tau-jets --keep-prompt-leptons
+```
+
+- **Taus:** the last copy of each prompt τ (no hadron among its ancestors; τ from D_s or B decays are ignored).
+- **Visible momentum:** the sum of the τ's visible final-state descendants (no neutrinos).
+- **Matching:** a selected jet is matched to the τ whose visible momentum is closest in ΔR, if ΔR < 0.4. If one τ matches several jets, only the closest jet is kept.
+- **Branches (one value per jet):**
+  - `jetTauPdgId` (±15)
+  - `jetTauDecayMode`: −11 or −13 for τ → e/μ νν; for hadronic decays 5·(nProngs − 1) + nπ⁰, so 0 = πν, 1 = ππ⁰ν, 2 = π2π⁰ν, 10 = 3πν, 11 = 3ππ⁰ν
+  - `jetTauNProngs` (π±, K±) and `jetTauNPi0`, counted through intermediate resonances but not through K⁰ decays
+  - `jetTauDR`
+  - `jetTauVisPt/Eta/Phi/E` (visible τ)
+  - `jetTauPt/Eta/Phi/E` (full τ)
+
+`config/higgs_tautau.cfg` is gg → H → ττ (m_H = 125 GeV) with Pythia's τ decays, including the τ spin correlations.
 
 ## Random seed
 

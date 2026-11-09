@@ -6,6 +6,7 @@
 
 #include "Pythia8/Pythia.h"
 #include <vector>
+#include <map>
 #include <memory>
 
 class JetAnalysis {
@@ -30,6 +31,7 @@ class JetAnalysis {
     // Invisible particles (neutrinos, BSM invisibles) are always dropped.
     // Prompt leptons (e/mu without a hadron among their ancestors, e.g. from W, Z
     // or tau decays) are dropped unless keepPromptLeptons is true.
+    // Undecayed unstable particles (see isUndecayed) are always dropped.
     // Replaces any particles and jets from a previous call. The counters below refer to
     // the last call.
     void convertPythiaToPseudoJets(const Pythia8::Event& event, bool keepPromptLeptons = false);
@@ -45,8 +47,16 @@ class JetAnalysis {
     // mother1 chain. Beam particles are not counted as hadron ancestors.
     static bool isPromptLepton(const Pythia8::Event& event, int i);
 
+    // True for a final-state particle that Pythia should have decayed (mayDecay() and a
+    // decay table) but did not, because its decay failed. Note: with ParticleDecays:limitTau0
+    // (or limitTau, limitRadius, limitCylinder) switched on, particles left undecayed on
+    // purpose (e.g. K0S, Lambda) also match and are removed.
+    static bool isUndecayed(const Pythia8::Event& event, int i);
+
     size_t nRemovedInvisible() const { return nRemovedInvisible_; }
     size_t nRemovedPromptLeptons() const { return nRemovedPromptLeptons_; }
+    // undecayed unstable particles removed in the last call, per PDG ID
+    const std::map<int, size_t>& removedUndecayed() const { return removedUndecayed_; }
 
     void clear() {
       jets_.clear();
@@ -57,6 +67,7 @@ class JetAnalysis {
     std::vector<fastjet::PseudoJet> jets_, particles_;
     size_t nRemovedInvisible_ = 0;
     size_t nRemovedPromptLeptons_ = 0;
+    std::map<int, size_t> removedUndecayed_;
 };
 
 #endif

@@ -23,6 +23,7 @@ class ArgumentParser {
     JetSelection selection_;
     long seed_;
     bool keepPromptLeptons_;
+    bool tauJets_ = false;
 
     // Parse a floating-point option value; the whole string must be a finite number.
     static bool parseDouble(const std::string& opt, const char* text, double& out) {
@@ -120,6 +121,9 @@ class ArgumentParser {
             else if (arg == "--keep-prompt-leptons") {
                 keepPromptLeptons_ = true;
             }
+            else if (arg == "--tau-jets") {
+                tauJets_ = true;
+            }
             else if (arg == "--abs-eta") {
                 selection_.absEta = true;
             }
@@ -173,6 +177,9 @@ class ArgumentParser {
         std::cout << "                           stored in the output, so the run can be reproduced)" << std::endl;
         std::cout << "      --keep-prompt-leptons  Cluster prompt e/mu (from W/Z/tau, not from hadron decays)" << std::endl;
         std::cout << "                           (default: removed before clustering)" << std::endl;
+        std::cout << "      --tau-jets           Write only jets matched to a generator tau (deltaR(jet, visible tau)" << std::endl;
+        std::cout << "                           < 0.4) and add the jetTau* truth branches (decay mode, visible and" << std::endl;
+        std::cout << "                           full tau momentum). Use --keep-prompt-leptons to keep leptonic taus." << std::endl;
         std::cout << "  Neutrinos and other invisible particles are never clustered." << std::endl;
         std::cout << std::endl;
         std::cout << "Jet selection (all cuts strict; default: pt > 30 && -3 < eta < 3):" << std::endl;
@@ -197,6 +204,7 @@ class ArgumentParser {
     const JetSelection& getSelection() const { return selection_; }
     long getSeed() const { return seed_; }
     bool keepPromptLeptons() const { return keepPromptLeptons_; }
+    bool tauJets() const { return tauJets_; }
 };
 
 #endif
